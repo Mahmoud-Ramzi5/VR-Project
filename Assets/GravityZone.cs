@@ -8,10 +8,11 @@ public class GravityZone : MonoBehaviour
     public Vector3 zoneSize = new Vector3(10, 10, 10);
     public float gravity = -9.81f;
 
+    private MaterialManager materialManager;
+    private MaterialProperties zoneMaterial;
+
     [Header("Floor Settings")]
     public float floorY = 0f; // Y-position of the floor
-    private MaterialManager materialManager;
-    private MaterialProperties floorMaterial;
 
     private List<GravityObject> objects = new List<GravityObject>();
 
@@ -20,12 +21,12 @@ public class GravityZone : MonoBehaviour
         materialManager = GetComponent<MaterialManager>();
         if (materialManager != null)
         {
-            floorMaterial = materialManager.GetMaterialProperties();
+            zoneMaterial = materialManager.GetMaterialProperties();
         }
         else
         {
             Debug.LogWarning($"No MaterialManager found on {gameObject.name}. Using default material.");
-            floorMaterial = new MaterialProperties
+            zoneMaterial = new MaterialProperties
             {
                 materialType = MaterialType.Stone,
                 bounciness = 0f,
@@ -44,7 +45,8 @@ public class GravityZone : MonoBehaviour
         {
             if (IsInsideZone(obj.transform.position))
             {
-                obj.ApplyGravity(gravity, floorY, floorMaterial);
+                Bounds zoneBounds = new Bounds(zoneCenter, zoneSize);
+                obj.ApplyGravityAndCollisions(gravity, zoneBounds, zoneMaterial);
             }
         }
     }

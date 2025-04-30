@@ -2,10 +2,14 @@
 
 public class GravityObject : MonoBehaviour
 {
-    public float verticalVelocity = 0f;
+    public Vector3 velocity = Vector3.zero;
 
     private MaterialManager materialManager;
     private MaterialProperties objectMaterial;
+
+    private bool onGround = false;
+    private bool onWall = false;
+    private float contactFriction = 0f;
 
     void Start()
     {
@@ -16,7 +20,6 @@ public class GravityObject : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"No MaterialManager found on {gameObject.name}. Using default material.");
             objectMaterial = new MaterialProperties
             {
                 materialType = MaterialType.Metal,
@@ -26,30 +29,83 @@ public class GravityObject : MonoBehaviour
         }
     }
 
-    public void ApplyGravity(float gravity, float floorY, MaterialProperties floorMaterial)
+    public void ApplyGravityAndCollisions(float gravity, Bounds zoneBounds, MaterialProperties zoneMaterial)
     {
-        verticalVelocity += gravity * Time.deltaTime;
-        transform.position += new Vector3(0, verticalVelocity * Time.deltaTime, 0);
+        // Apply gravity only if not grounded
+        velocity.y += gravity * Time.deltaTime;
 
-        if (transform.position.y <= floorY)
+        // Move object
+        transform.position += velocity * Time.deltaTime;
+
+        Vector3 pos = transform.position;
+        Vector3 halfSize = Vector3.one * 0.5f;
+
+        // Combined material effects
+        float bounciness = (objectMaterial.bounciness + zoneMaterial.bounciness) * 0.5f;
+        contactFriction = (objectMaterial.friction + zoneMaterial.friction) * 0.5f;
+
+        // Reset contact flags
+        onGround = false;
+        onWall = false;
+
+        // Collision checks (with bounce + contact detection)
+        if (pos.y - halfSize.y <= zoneBounds.min.y) // floor
         {
-            transform.position = new Vector3(transform.position.x, floorY, transform.position.z);
-
-            // Combine bounciness from object and floor (average or other rule)
-            float combinedBounciness = (objectMaterial.bounciness + floorMaterial.bounciness) * 0.5f;
-            float combinedFriction = (objectMaterial.friction + floorMaterial.friction) * 0.5f;
-
-            // Reverse velocity for bounce
-            verticalVelocity = -verticalVelocity * combinedBounciness;
-
-            // If velocity is too small, stop bouncing
-            if (Mathf.Abs(verticalVelocity) < 0.1f)
-            {
-                verticalVelocity = 0f;
-            }
-
-            // Apply friction (if needed for horizontal movement or damping)
-            verticalVelocity *= (1 - combinedFriction);
+            pos.y = zoneBounds.min.y + halfSize.y;
+            if (velocity.y < 0) velocity.y = -velocity.y * bounciness;
+            onGround = true;
         }
+        else if (pos.y + halfSize.y >= zoneBounds.max.y) // ceiling
+        {
+            pos.y = zoneBounds.max.y - halfSize.y;
+            if (velocity.y > 0) velocity.y = -velocity.y * bounciness;
+            onGround = true;
+        }
+
+        if (pos.x - halfSize.x <= zoneBounds.min.x) // left
+        {
+            pos.x = zoneBounds.min.x + halfSize.x;
+            if (velocity.x < 0) velocity.x = -velocity.x * bounciness;
+            onWall = true;
+        }
+        else if (pos.x + halfSize.x >= zoneBounds.max.x) // right
+        {
+            pos.x = zoneBounds.max.x - halfSize.x;
+            if (velocity.x > 0) velocity.x = -velocity.x * bounciness;
+            onWall = true;
+        }
+
+        if (pos.z - halfSize.z <= zoneBounds.min.z) // back
+        {
+            pos.z = zoneBounds.min.z + halfSize.z;
+            if (velocity.z < 0) velocity.z = -velocity.z * bounciness;
+            onWall = true;
+        }
+        else if (pos.z + halfSize.z >= zoneBounds.max.z) // front
+        {
+            pos.z = zoneBounds.max.z - halfSize.z;
+            if (velocity.z > 0) velocity.z = -velocity.z * bounciness;
+            onWall = true;
+        }
+
+        // Apply continuous friction while in contact with surfaces
+        if (onGround || onWall)
+        {
+            float frictionFactor = 1f - (contactFriction * Time.deltaTime * 5f); // scale as needed
+            velocity.x *= frictionFactor;
+            velocity.z *= frictionFactor;
+
+            // optional: slight vertical damping
+            if (onGround)
+                velocity.y *= (1f - contactFriction * 0.5f);
+        }
+
+        // Stop tiny velocity
+        if (velocity.magnitude < 0.01f)
+        {
+            velocity = Vector3.zero;
+        }
+
+        transform.position = pos;
     }
 }

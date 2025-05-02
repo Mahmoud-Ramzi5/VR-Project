@@ -5,7 +5,7 @@ public class GravityObject : MonoBehaviour
     public Vector3 velocity = Vector3.zero;
 
     private MaterialManager materialManager;
-    private MaterialProperties objectMaterial;
+    private MaterialPreset objectMaterial;
 
     private bool onGround = false;
     private bool onWall = false;
@@ -20,16 +20,11 @@ public class GravityObject : MonoBehaviour
         }
         else
         {
-            objectMaterial = new MaterialProperties
-            {
-                materialType = MaterialType.Metal,
-                bounciness = 0.1f,
-                friction = 0.2f
-            };
+            objectMaterial = new MaterialPreset(MaterialType.Custom, 0.5f, 0.0f);
         }
     }
 
-    public void ApplyGravityAndCollisions(float gravity, Bounds zoneBounds, MaterialProperties zoneMaterial)
+    public void ApplyGravityAndCollisions(float gravity, Bounds zoneBounds, MaterialPreset zoneMaterial)
     {
         // Apply gravity only if not grounded
         velocity.y += gravity * Time.deltaTime;

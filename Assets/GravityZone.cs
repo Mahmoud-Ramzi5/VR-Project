@@ -9,7 +9,7 @@ public class GravityZone : MonoBehaviour
     public float gravity = -9.81f;
 
     private MaterialManager materialManager;
-    private MaterialProperties zoneMaterial;
+    private MaterialPreset zoneMaterial;
 
     [Header("Floor Settings")]
     public float floorY = 0f; // Y-position of the floor
@@ -25,13 +25,8 @@ public class GravityZone : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"No MaterialManager found on {gameObject.name}. Using default material.");
-            zoneMaterial = new MaterialProperties
-            {
-                materialType = MaterialType.Stone,
-                bounciness = 0f,
-                friction = 0.9f
-            };
+            Debug.LogWarning($"No MaterialManager found on {gameObject.name}. Using Custom material.");
+            zoneMaterial = new MaterialPreset(MaterialType.Custom, 0.5f, 0.0f);
         }
 
         // Find all gravity-affected objects in the scene

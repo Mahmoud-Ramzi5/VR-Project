@@ -1,14 +1,5 @@
 ﻿using UnityEngine;
 
-public enum MaterialType
-{
-    Glass,
-    Wood,
-    Stone,
-    Metal,
-    Rubber,
-    Custom
-}
 
 [System.Serializable]
 public class MaterialProperties

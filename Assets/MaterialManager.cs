@@ -16,31 +16,45 @@ public class MaterialManager : MonoBehaviour
 {
     public MaterialType materialType;
     public MaterialDatabase materialDatabase;
-    private Renderer objectRenderer;
+    private GameObject currentObject;
 
     private void Start()
     {
-        // Get the Renderer component
-        objectRenderer = GetComponent<Renderer>();
-        ApplyMaterial(materialType);
+        currentObject = gameObject;
+        ApplyMaterial(currentObject, materialType);
     }
+
     private void OnValidate()
     {
-        if (objectRenderer == null)
-            objectRenderer = GetComponent<Renderer>();
-
-        if (objectRenderer != null)
-            ApplyMaterial(materialType);
+        ApplyMaterial(currentObject, materialType);
     }
 
-    private void ApplyMaterial(MaterialType type)
+    private void ApplyMaterial(GameObject parent, MaterialType type)
     {
         var preset = materialDatabase.GetPreset(type);
         Debug.LogWarning($"Preset {preset}");
 
-        if (preset != null && objectRenderer != null)
+        if (preset != null && parent != null)
         {
-            objectRenderer.sharedMaterial = preset.material;
+            // ProcessChildren
+            if (parent.transform.childCount > 0)
+            {
+                Debug.LogWarning("Children found in " + parent.name);
+                foreach (Transform child in parent.transform)
+                {
+                    // Process each child
+                    var renderer = child.GetComponent<Renderer>();
+                    if (preset != null && renderer != null)
+                        renderer.sharedMaterial = preset.material;
+                }
+            } 
+            else
+            {
+                Debug.LogWarning("No children found in " + parent.name);
+                var renderer = parent.GetComponent<Renderer>();
+                if (preset != null && renderer != null)
+                    renderer.sharedMaterial = preset.material;
+            }
         }
     }
 

@@ -159,6 +159,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   materialType: 4
   materialDatabase: {fileID: 11400000, guid: 7e373c49a5e84a54788a77071041f4c4, type: 2}
+--- !u!114 &82456069
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 82456065}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e2c2a8226759247a63664b828eba38, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &310382301
 GameObject:
   m_ObjectHideFlags: 0
@@ -1041,7 +1053,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 2389935a1e2cd6f458893a6b833a36dd, type: 2}
+  - {fileID: 2100000, guid: a5813af496f1b4f4a99cbe8a296c0257, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1098,7 +1110,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 47f59257a07464841b6e806475c0c946, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  materialType: 4
+  materialType: 3
   materialDatabase: {fileID: 11400000, guid: 7e373c49a5e84a54788a77071041f4c4, type: 2}
 --- !u!114 &2132962187
 MonoBehaviour:
@@ -1304,6 +1316,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8905634397878665457, guid: fa424d231939ef349ab7cc35e3f2c061, type: 3}
       insertIndex: -1
       addedObject: {fileID: 82456068}
+    - targetCorrespondingSourceObject: {fileID: 8905634397878665457, guid: fa424d231939ef349ab7cc35e3f2c061, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 82456069}
   m_SourcePrefab: {fileID: 100100000, guid: fa424d231939ef349ab7cc35e3f2c061, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

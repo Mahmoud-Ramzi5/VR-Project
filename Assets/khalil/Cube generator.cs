@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Linq;
+
 public class CubeGenerator : MonoBehaviour
 {
     public Cube cubeConfig; // Assign the Cube ScriptableObject in the Inspector
@@ -55,15 +57,63 @@ public class CubeGenerator : MonoBehaviour
 
                     // Connect to right neighbor
                     if (x < dim.x - 1)
-                        CreateConnection(current, grid[x + 1, y, z]);
+                    {
+                        SpringPoint right = grid[x + 1, y, z];
+                        if (right != null && !current.connections.Any(conn => conn.point == right))
+                        {
+                            CreateConnection(current, right);
+                        }
+                    }
 
-                    // Connect to above neighbor
+                    // Connect to left neighbor (this is redundant as it will be covered when processing the left point)
+                    // if (x > 0) 
+                    // {
+                    //     SpringPoint left = grid[x - 1, y, z];
+                    //     if (left != null && !current.connections.Any(conn => conn.point == left))
+                    //     {
+                    //         CreateConnection(current, left);
+                    //     }
+                    // }
+
+                    // Connect to up neighbor
                     if (y < dim.y - 1)
-                        CreateConnection(current, grid[x, y + 1, z]);
+                    {
+                        SpringPoint up = grid[x, y + 1, z];
+                        if (up != null && !current.connections.Any(conn => conn.point == up))
+                        {
+                            CreateConnection(current, up);
+                        }
+                    }
 
-                    // Connect to forward neighbor
+                    // Connect to down neighbor (redundant)
+                    // if (y > 0)
+                    // {
+                    //     SpringPoint down = grid[x, y - 1, z];
+                    //     if (down != null && !current.connections.Any(conn => conn.point == down))
+                    //     {
+                    //         CreateConnection(current, down);
+                    //     }
+                    // }
+
+                    // Connect to front neighbor
                     if (z < dim.z - 1)
-                        CreateConnection(current, grid[x, y, z + 1]);
+                    {
+                        SpringPoint front = grid[x, y, z + 1];
+                        if (front != null && !current.connections.Any(conn => conn.point == front))
+                        {
+                            CreateConnection(current, front);
+                        }
+                    }
+
+                    // Connect to back neighbor (redundant)
+                    // if (z > 0)
+                    // {
+                    //     SpringPoint back = grid[x, y, z - 1];
+                    //     if (back != null && !current.connections.Any(conn => conn.point == back))
+                    //     {
+                    //         CreateConnection(current, back);
+                    //     }
+                    // }
                 }
             }
         }

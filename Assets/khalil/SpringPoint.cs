@@ -12,8 +12,8 @@ public class Connection
     public Connection()
     {
         // Default values in constructor
-        springConstant = 100f;
-        damperConstant = 5f;
+        springConstant = 2f;
+        damperConstant = 0.5f;
         restLength = 1f;
     }
 }
@@ -33,8 +33,8 @@ public class SpringPoint : MonoBehaviour
         // Initialize any new connections added via Inspector
         foreach (var conn in connections)
         {
-            if (conn.springConstant == 0) conn.springConstant = 10f;
-            if (conn.damperConstant == 0) conn.damperConstant = 0.2f;
+            if (conn.springConstant == 0) conn.springConstant = 2f;
+            if (conn.damperConstant == 0) conn.damperConstant = 0.5f;
             if (conn.restLength == 0) conn.restLength = 1f;
         }
         rb = GetComponent<Rigidbody>();

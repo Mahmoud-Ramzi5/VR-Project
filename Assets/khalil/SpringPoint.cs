@@ -5,9 +5,17 @@ using System.Collections.Generic;
 public class Connection
 {
     public SpringPoint point;
-    public float springConstant = 100f;
-    public float damperConstant = 5f;
-    public float restLength = 1f;
+    public float springConstant;
+    public float damperConstant;
+    public float restLength;
+
+    public Connection()
+    {
+        // Default values in constructor
+        springConstant = 100f;
+        damperConstant = 5f;
+        restLength = 1f;
+    }
 }
 
 public class SpringPoint : MonoBehaviour
@@ -19,6 +27,16 @@ public class SpringPoint : MonoBehaviour
 
     private void Start()
     {
+        
+        if (connections == null) connections = new List<Connection>();
+
+        // Initialize any new connections added via Inspector
+        foreach (var conn in connections)
+        {
+            if (conn.springConstant == 0) conn.springConstant = 10f;
+            if (conn.damperConstant == 0) conn.damperConstant = 0.2f;
+            if (conn.restLength == 0) conn.restLength = 1f;
+        }
         rb = GetComponent<Rigidbody>();
 
         // Setup LineRenderer
@@ -32,39 +50,47 @@ public class SpringPoint : MonoBehaviour
 
     private void FixedUpdate()
     {
-        
         foreach (Connection connection in connections)
         {
             if (connection.point == null) continue;
 
+            // Ensure each connection is processed only once
+            if (this.GetInstanceID() >= connection.point.GetInstanceID())
+            {
+                continue;
+            }
+
             Rigidbody otherRb = connection.point.GetComponent<Rigidbody>();
+            rb.velocity = Vector3.zero;
+            otherRb.velocity = Vector3.zero;
             Vector3 otherPosition = otherRb.position;
             Vector3 position = rb.position;
 
             Vector3 displacement = otherPosition - position;
             float currentDistance = displacement.magnitude;
-            if (currentDistance < 0.001f) continue; // Prevent division by zero
+            if (currentDistance < 0.001f) continue;
 
             Vector3 direction = displacement / currentDistance;
 
-            // SPRING FORCE
+            // Spring force calculation
             float springForceMagnitude = connection.springConstant * (currentDistance - connection.restLength);
 
-            // DAMPER FORCE (using velocity difference)
-            Vector3 relativeVelocity = otherRb.linearVelocity - rb.linearVelocity;
+            // Damper force calculation
+            Vector3 relativeVelocity = otherRb.velocity - rb.velocity;
             float dampingForceMagnitude = Vector3.Dot(relativeVelocity, direction) * connection.damperConstant;
 
-            // COMBINED FORCE
+            // Combined force
             float totalForce = springForceMagnitude + dampingForceMagnitude;
 
-            // FORCE LIMITING (critical fix)
-            float maxForce = 100f; // Adjust based on your scale
+            // Force limiting
+            float maxForce = 100f;
             totalForce = Mathf.Clamp(totalForce, -maxForce, maxForce);
 
             Vector3 forceVector = totalForce * direction;
 
-            // Apply forces proportionally based on mass
-            float massRatio = rb.mass / (rb.mass + otherRb.mass);
+            // Apply forces based on mass ratio
+            //float massRatio = rb.mass / (rb.mass + otherRb.mass);
+           float massRatio = rb.mass;
             rb.AddForce(forceVector * (1 - massRatio), ForceMode.Force);
             otherRb.AddForce(-forceVector * massRatio, ForceMode.Force);
         }

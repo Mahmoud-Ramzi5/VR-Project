@@ -75,7 +75,7 @@ public class SpringPoint : MonoBehaviour
                                (currentDistance - connection.restLength);
 
             // Damping force calculation
-            Vector3 relativeVelocity = otherRb.velocity - rb.velocity;
+            Vector3 relativeVelocity = otherRb.linearVelocity - rb.linearVelocity;
             float dampingForce = Vector3.Dot(relativeVelocity, direction) *
                                connection.damperConstant;
 

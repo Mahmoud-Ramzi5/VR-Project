@@ -54,15 +54,13 @@ public class SpringPoint : MonoBehaviour
         {
             if (connection.point == null) continue;
 
-            // Ensure each connection is processed only once
+            // Skip if already processed by the other point
             if (this.GetInstanceID() >= connection.point.GetInstanceID())
             {
                 continue;
             }
 
             Rigidbody otherRb = connection.point.GetComponent<Rigidbody>();
-            rb.velocity = Vector3.zero;
-            otherRb.velocity = Vector3.zero;
             Vector3 otherPosition = otherRb.position;
             Vector3 position = rb.position;
 
@@ -70,27 +68,29 @@ public class SpringPoint : MonoBehaviour
             float currentDistance = displacement.magnitude;
             if (currentDistance < 0.001f) continue;
 
-            Vector3 direction = displacement / currentDistance;
+            Vector3 direction = displacement.normalized;
 
             // Spring force calculation
-            float springForceMagnitude = connection.springConstant * (currentDistance - connection.restLength);
+            float springForce = connection.springConstant *
+                               (currentDistance - connection.restLength);
 
-            // Damper force calculation
+            // Damping force calculation
             Vector3 relativeVelocity = otherRb.velocity - rb.velocity;
-            float dampingForceMagnitude = Vector3.Dot(relativeVelocity, direction) * connection.damperConstant;
+            float dampingForce = Vector3.Dot(relativeVelocity, direction) *
+                               connection.damperConstant;
 
-            // Combined force
-            float totalForce = springForceMagnitude + dampingForceMagnitude;
+            // Total force for this spring
+            float totalForce = springForce + dampingForce;
 
-            // Force limiting
-            float maxForce = 100f;
-            totalForce = Mathf.Clamp(totalForce, -maxForce, maxForce);
-
+            // Apply force clamping
+            totalForce = Mathf.Clamp(totalForce, -100f, 100f);
             Vector3 forceVector = totalForce * direction;
 
-            // Apply forces based on mass ratio
-            //float massRatio = rb.mass / (rb.mass + otherRb.mass);
-           float massRatio = rb.mass;
+            // Calculate proper mass ratio (fixed)
+            float totalMass = rb.mass + otherRb.mass;
+            float massRatio = rb.mass / totalMass;
+
+            // Apply forces additively
             rb.AddForce(forceVector * (1 - massRatio), ForceMode.Force);
             otherRb.AddForce(-forceVector * massRatio, ForceMode.Force);
         }

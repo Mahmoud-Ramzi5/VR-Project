@@ -5,9 +5,10 @@ using System.Collections.Generic;
 public class Connection
 {
     public SpringPoint point;
-    public float springConstant = 100f;
-    public float damperConstant = 5f;
+    public float springConstant = 2f;
+    public float damperConstant = 0.05f;
     public float restLength = 1f;
+    public Vector3 force;
 }
 
 public class SpringPoint : MonoBehaviour
@@ -17,9 +18,23 @@ public class SpringPoint : MonoBehaviour
     private Rigidbody rb;
     private LineRenderer lineRenderer;
 
+    // new 
+    public Vector3 Gravity => new Vector3(0, -9.81f, 0);
+    public bool applyGravity = true;
+    
+    //
+
+
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
+        foreach (Connection connection in connections)
+        {
+            connection.springConstant = 2f;
+            connection.damperConstant = 0.05f;
+            connection.restLength = 1f;
+        }
+
 
         // Setup LineRenderer
         lineRenderer = gameObject.AddComponent<LineRenderer>();
@@ -32,28 +47,55 @@ public class SpringPoint : MonoBehaviour
 
     private void FixedUpdate()
     {
-        
+        // new
+        float deltaTime = Time.fixedDeltaTime;
+
+
         foreach (Connection connection in connections)
         {
             if (connection.point == null) continue;
+
+            // new
+
+            // Reset force
+            Vector3 weight = Vector3.zero;
+            connection.force = Vector3.zero;
+            // Apply gravity
+            if (applyGravity)
+                weight += rb.mass * Gravity.normalized;
+
+            //
 
             Rigidbody otherRb = connection.point.GetComponent<Rigidbody>();
             Vector3 otherPosition = otherRb.position;
             Vector3 position = rb.position;
 
+            // TEST
             Vector3 displacement = otherPosition - position;
             float currentDistance = displacement.magnitude;
             if (currentDistance < 0.001f) continue; // Prevent division by zero
 
             Vector3 direction = displacement / currentDistance;
 
-            // SPRING FORCE
-            float springForceMagnitude = connection.springConstant * (currentDistance - connection.restLength);
+
+            // new
+
+
+            // SPRING FORCE: Hooke's Law: F = -k(x - L)
+            Vector3 forceDir = displacement.normalized;
+            Vector3 springForce = connection.springConstant * (currentDistance - connection.restLength) * forceDir;
+            connection.force += springForce;
+
 
             // DAMPER FORCE (using velocity difference)
-            Vector3 relativeVelocity = otherRb.velocity - rb.velocity;
-            float dampingForceMagnitude = Vector3.Dot(relativeVelocity, direction) * connection.damperConstant;
+            Vector3 relativeVelocity = otherRb.linearVelocity - rb.linearVelocity;
+            Vector3 dampingForce = connection.damperConstant * Vector3.Dot(relativeVelocity, forceDir) * forceDir;
+            connection.force += dampingForce;
 
+            //
+
+
+            /*
             // COMBINED FORCE
             float totalForce = springForceMagnitude + dampingForceMagnitude;
 
@@ -67,6 +109,16 @@ public class SpringPoint : MonoBehaviour
             float massRatio = rb.mass / (rb.mass + otherRb.mass);
             rb.AddForce(forceVector * (1 - massRatio), ForceMode.Force);
             otherRb.AddForce(-forceVector * massRatio, ForceMode.Force);
+            */
+
+
+            rb.AddForce(weight);
+            otherRb.AddForce(weight);
+
+            rb.AddForce(connection.force);
+            otherRb.AddForce(-connection.force);
+
+
         }
     }
 

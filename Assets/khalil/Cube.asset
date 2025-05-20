@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90338227a7f9c744f82f54a90bd563a2, type: 3}
   m_Name: Cube
   m_EditorClassIdentifier: 
-  gridDimensions: {x: 5, y: 5, z: 5}
+  gridDimensions: {x: 3, y: 3, z: 3}
   spacing: 1
-  springConstant: 100
-  damperConstant: 5
+  springConstant: 20
+  damperConstant: 0.5

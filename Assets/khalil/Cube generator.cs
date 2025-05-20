@@ -17,7 +17,6 @@ public class CubeGenerator : MonoBehaviour
     {
         Vector3Int dim = cubeConfig.gridDimensions;
         grid = new SpringPoint[dim.x, dim.y, dim.z];
-
         // Calculate offset to center the cube
         Vector3 offset = new Vector3(
             (dim.x - 1) * cubeConfig.spacing * 0.5f,
@@ -38,8 +37,15 @@ public class CubeGenerator : MonoBehaviour
                         z * cubeConfig.spacing
                     ) - offset;
 
+
                     GameObject go = Instantiate(springPointPrefab, transform);
                     go.transform.position = position;
+                    if ((x == 0 || x == dim.x - 1) &&
+                       (y == 0 || y == dim.y - 1) &&
+                       (z == 0 || z == dim.z - 1))
+                    {
+                        go.GetComponent<SpringPoint>().isFixed = true; // Fix corners
+                    }
                     SpringPoint sp = go.GetComponent<SpringPoint>();
                     grid[x, y, z] = sp;
                 }
@@ -47,6 +53,7 @@ public class CubeGenerator : MonoBehaviour
         }
 
         // Connect adjacent points with springs
+        // Add shear and bend connections
         for (int x = 0; x < dim.x; x++)
         {
             for (int y = 0; y < dim.y; y++)
@@ -55,65 +62,31 @@ public class CubeGenerator : MonoBehaviour
                 {
                     SpringPoint current = grid[x, y, z];
 
-                    // Connect to right neighbor
-                    if (x < dim.x - 1)
+                    for (int dx = -1; dx <= 1; dx++)
                     {
-                        SpringPoint right = grid[x + 1, y, z];
-                        if (right != null && !current.connections.Any(conn => conn.point == right))
+                        for (int dy = -1; dy <= 1; dy++)
                         {
-                            CreateConnection(current, right);
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                if (dx == 0 && dy == 0 && dz == 0) continue;
+
+                                int nx = x + dx;
+                                int ny = y + dy;
+                                int nz = z + dz;
+
+                                if (nx >= 0 && nx < dim.x &&
+                                    ny >= 0 && ny < dim.y &&
+                                    nz >= 0 && nz < dim.z)
+                                {
+                                    SpringPoint neighbor = grid[nx, ny, nz];
+                                    if (!current.connections.Exists(c => c.point == neighbor))
+                                    {
+                                        CreateConnection(current, neighbor);
+                                    }
+                                }
+                            }
                         }
                     }
-
-                    // Connect to left neighbor (this is redundant as it will be covered when processing the left point)
-                    // if (x > 0) 
-                    // {
-                    //     SpringPoint left = grid[x - 1, y, z];
-                    //     if (left != null && !current.connections.Any(conn => conn.point == left))
-                    //     {
-                    //         CreateConnection(current, left);
-                    //     }
-                    // }
-
-                    // Connect to up neighbor
-                    if (y < dim.y - 1)
-                    {
-                        SpringPoint up = grid[x, y + 1, z];
-                        if (up != null && !current.connections.Any(conn => conn.point == up))
-                        {
-                            CreateConnection(current, up);
-                        }
-                    }
-
-                    // Connect to down neighbor (redundant)
-                    // if (y > 0)
-                    // {
-                    //     SpringPoint down = grid[x, y - 1, z];
-                    //     if (down != null && !current.connections.Any(conn => conn.point == down))
-                    //     {
-                    //         CreateConnection(current, down);
-                    //     }
-                    // }
-
-                    // Connect to front neighbor
-                    if (z < dim.z - 1)
-                    {
-                        SpringPoint front = grid[x, y, z + 1];
-                        if (front != null && !current.connections.Any(conn => conn.point == front))
-                        {
-                            CreateConnection(current, front);
-                        }
-                    }
-
-                    // Connect to back neighbor (redundant)
-                    // if (z > 0)
-                    // {
-                    //     SpringPoint back = grid[x, y, z - 1];
-                    //     if (back != null && !current.connections.Any(conn => conn.point == back))
-                    //     {
-                    //         CreateConnection(current, back);
-                    //     }
-                    // }
                 }
             }
         }
@@ -121,24 +94,16 @@ public class CubeGenerator : MonoBehaviour
 
     void CreateConnection(SpringPoint a, SpringPoint b)
     {
-        // Add connection from A to B
-        Connection connAB = new Connection
+        float restLength = Vector3.Distance(a.transform.position, b.transform.position);
+
+        Connection conn = new Connection
         {
             point = b,
             springConstant = cubeConfig.springConstant,
             damperConstant = cubeConfig.damperConstant,
-            restLength = cubeConfig.spacing
+            restLength = restLength
         };
-        a.connections.Add(connAB);
-
-        // Add connection from B to A
-        Connection connBA = new Connection
-        {
-            point = a,
-            springConstant = cubeConfig.springConstant,
-            damperConstant = cubeConfig.damperConstant,
-            restLength = cubeConfig.spacing
-        };
-        b.connections.Add(connBA);
+        a.connections.Add(conn);
     }
+
 }

@@ -5,38 +5,45 @@ using System.Collections.Generic;
 public class Connection
 {
     public SpringPoint point;
-    public float springConstant = 2f;
-    public float damperConstant = 0.05f;
+    public float springConstant = 10f;
+    public float damperConstant = 0.5f;
     public float restLength = 1f;
-    public Vector3 force;
 }
 
 public class SpringPoint : MonoBehaviour
 {
     public List<Connection> connections;
+    private static List<SpringPoint> allParticles = new List<SpringPoint>();
 
-    private Rigidbody rb;
-    private LineRenderer lineRenderer;
+    public float mass = 1f;
+    public float radius = 0.1f;
+    public Vector3 velocity;
+    private Vector3 acceleration;
+    public bool isFixed = false;
 
-    // new 
-    public Vector3 Gravity => new Vector3(0, -9.81f, 0);
     public bool applyGravity = true;
-    
-    //
+    public Vector3 gravity => new Vector3(0, -9.81f, 0);
 
+    [Header("Collision")]
+    public float bounciness = 0.005f;
+    public float friction = 2f;
+
+    [Header("Bounds")]
+    public Vector3 boundsMin = new Vector3(-5f, 0f, -5f);
+    public Vector3 boundsMax = new Vector3(5f, 5f, 5f);
+
+    private LineRenderer lineRenderer;
 
     private void Start()
     {
-        rb = GetComponent<Rigidbody>();
+        allParticles.Add(this);
+
         foreach (Connection connection in connections)
         {
-            connection.springConstant = 2f;
-            connection.damperConstant = 0.05f;
-            connection.restLength = 1f;
+            if (connection.point != null)
+                connection.restLength = Vector3.Distance(transform.position, connection.point.transform.position);
         }
 
-
-        // Setup LineRenderer
         lineRenderer = gameObject.AddComponent<LineRenderer>();
         lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
         lineRenderer.startColor = Color.white;
@@ -47,92 +54,135 @@ public class SpringPoint : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // new
         float deltaTime = Time.fixedDeltaTime;
+        if (isFixed) return;
 
+        Vector3 netForce = applyGravity ? gravity * mass : Vector3.zero;
 
         foreach (Connection connection in connections)
         {
             if (connection.point == null) continue;
 
-            // new
+            Vector3 dir = connection.point.transform.position - transform.position;
+            float dist = dir.magnitude;
+            if (dist < 0.001f) continue;
 
-            // Reset force
-            Vector3 weight = Vector3.zero;
-            connection.force = Vector3.zero;
-            // Apply gravity
-            if (applyGravity)
-                weight += rb.mass * Gravity.normalized;
+            Vector3 norm = dir / dist;
+            float stretch = dist - connection.restLength;
 
-            //
+            // Hooke's Law
+            Vector3 springForce = connection.springConstant * stretch * norm;
 
-            Rigidbody otherRb = connection.point.GetComponent<Rigidbody>();
-            Vector3 otherPosition = otherRb.position;
-            Vector3 position = rb.position;
+            // Damping
+            Vector3 relativeVelocity = connection.point.velocity - velocity;
+            Vector3 dampingForce = connection.damperConstant * Vector3.Dot(relativeVelocity, norm) * norm;
 
-            // TEST
-            Vector3 displacement = otherPosition - position;
-            float currentDistance = displacement.magnitude;
-            if (currentDistance < 0.001f) continue; // Prevent division by zero
+            Vector3 totalForce = springForce + dampingForce;
 
-            Vector3 direction = displacement / currentDistance;
+            // Apply equal and opposite forces
+            if (!connection.point.isFixed)
+                connection.point.acceleration -= totalForce / connection.point.mass;
 
-
-            // new
-
-
-            // SPRING FORCE: Hooke's Law: F = -k(x - L)
-            Vector3 forceDir = displacement.normalized;
-            Vector3 springForce = connection.springConstant * (currentDistance - connection.restLength) * forceDir;
-            connection.force += springForce;
-
-
-            // DAMPER FORCE (using velocity difference)
-            Vector3 relativeVelocity = otherRb.linearVelocity - rb.linearVelocity;
-            Vector3 dampingForce = connection.damperConstant * Vector3.Dot(relativeVelocity, forceDir) * forceDir;
-            connection.force += dampingForce;
-
-            //
-
-
-            /*
-            // COMBINED FORCE
-            float totalForce = springForceMagnitude + dampingForceMagnitude;
-
-            // FORCE LIMITING (critical fix)
-            float maxForce = 100f; // Adjust based on your scale
-            totalForce = Mathf.Clamp(totalForce, -maxForce, maxForce);
-
-            Vector3 forceVector = totalForce * direction;
-
-            // Apply forces proportionally based on mass
-            float massRatio = rb.mass / (rb.mass + otherRb.mass);
-            rb.AddForce(forceVector * (1 - massRatio), ForceMode.Force);
-            otherRb.AddForce(-forceVector * massRatio, ForceMode.Force);
-            */
-
-
-            rb.AddForce(weight);
-            otherRb.AddForce(weight);
-
-            rb.AddForce(connection.force);
-            otherRb.AddForce(-connection.force);
-
-
+            netForce += totalForce;
         }
+
+        // Apply force to this point
+        acceleration = netForce / mass;
+
+        // Semi-implicit Euler integration
+        velocity += acceleration * deltaTime;
+        transform.position += velocity * deltaTime;
+
+        HandleCollisions();
+        HandleBoundaryBox();
+    }
+
+    private void HandleCollisions()
+    {
+        foreach (SpringPoint other in allParticles)
+        {
+            if (other == this || other == null) continue;
+
+            Vector3 delta = other.transform.position - transform.position;
+            float dist = delta.magnitude;
+            float minDist = radius + other.radius;
+
+            if (dist < minDist && dist > 0.001f)
+            {
+                Vector3 normal = delta.normalized;
+                float penetration = minDist - dist;
+                Vector3 correction = normal * (penetration / 2);
+
+                if (!isFixed)
+                    transform.position -= correction;
+                if (!other.isFixed)
+                    other.transform.position += correction;
+
+                Vector3 relVel = velocity - other.velocity;
+                float velAlongNormal = Vector3.Dot(relVel, normal);
+                if (velAlongNormal > 0) continue;
+
+                float e = Mathf.Min(bounciness, other.bounciness);
+                float j = -(1 + e) * velAlongNormal / (1 / mass + 1 / other.mass);
+                Vector3 impulse = j * normal;
+
+                if (!isFixed)
+                    velocity += impulse / mass;
+                if (!other.isFixed)
+                    other.velocity -= impulse / other.mass;
+
+                Vector3 tangent = (relVel - velAlongNormal * normal).normalized;
+                float jt = -Vector3.Dot(relVel, tangent) / (1 / mass + 1 / other.mass);
+                float mu = Mathf.Sqrt(friction * other.friction);
+                Vector3 frictionImpulse = Mathf.Abs(jt) < j * mu ? jt * tangent : -j * mu * tangent;
+
+                if (!isFixed)
+                    velocity += frictionImpulse / mass;
+                if (!other.isFixed)
+                    other.velocity -= frictionImpulse / other.mass;
+            }
+        }
+    }
+
+    private void HandleBoundaryBox()
+    {
+        Vector3 pos = transform.position;
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (pos[i] - radius < boundsMin[i])
+            {
+                pos[i] = boundsMin[i] + radius;
+                velocity[i] *= -bounciness;
+                velocity *= (1f - friction);
+            }
+            else if (pos[i] + radius > boundsMax[i])
+            {
+                pos[i] = boundsMax[i] - radius;
+                velocity[i] *= -bounciness;
+                velocity *= (1f - friction);
+            }
+        }
+
+        transform.position = pos;
     }
 
     private void Update()
     {
-        // Update LineRenderer positions
+        if (lineRenderer == null) return;
+
         lineRenderer.positionCount = connections.Count * 2;
         int index = 0;
         foreach (Connection conn in connections)
         {
             if (conn.point == null) continue;
-            lineRenderer.SetPosition(index, transform.position);
-            lineRenderer.SetPosition(index + 1, conn.point.transform.position);
-            index += 2;
+            lineRenderer.SetPosition(index++, transform.position);
+            lineRenderer.SetPosition(index++, conn.point.transform.position);
         }
+    }
+
+    private void OnDestroy()
+    {
+        allParticles.Remove(this);
     }
 }

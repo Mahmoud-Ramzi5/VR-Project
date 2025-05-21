@@ -36,8 +36,8 @@ public class SpringCubeGenerator : MonoBehaviour
             createdPoints[i] = Instantiate(springPointPrefab, worldPos, Quaternion.identity);
             createdPoints[i].name = "Point_" + i;
 
-            if (fixBottomCorners && (i == 0 || i == 1 || i == 4 || i == 5))
-                createdPoints[i].isFixed = true;
+            //if (fixBottomCorners && (i == 0 || i == 1 || i == 4 || i == 5))
+            //    createdPoints[i].isFixed = true;
 
             points.Add(createdPoints[i]);
         }

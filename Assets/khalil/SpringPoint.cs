@@ -16,7 +16,7 @@ public class SpringPoint : MonoBehaviour
     private static List<SpringPoint> allParticles = new List<SpringPoint>();
 
     public float mass = 1f;
-    public float radius = 0.1f;
+    public float radius = 20f;
     public Vector3 velocity;
     private Vector3 acceleration;
     public bool isFixed = false;
@@ -81,7 +81,7 @@ public class SpringPoint : MonoBehaviour
 
             // Apply equal and opposite forces
             if (!connection.point.isFixed)
-                connection.point.acceleration -= totalForce / connection.point.mass;
+                connection.point.acceleration -= (totalForce) / connection.point.mass;
 
             netForce += totalForce;
         }
@@ -111,7 +111,7 @@ public class SpringPoint : MonoBehaviour
             {
                 Vector3 normal = delta.normalized;
                 float penetration = minDist - dist;
-                Vector3 correction = normal * (penetration / 2);
+                Vector3 correction = normal * (10);
 
                 if (!isFixed)
                     transform.position -= correction;
@@ -143,6 +143,17 @@ public class SpringPoint : MonoBehaviour
             }
         }
     }
+    public void HandleInsideCollision()
+    {
+        foreach (SpringPoint other in allParticles)
+        {
+            if (other == this || other == null) continue;
+
+            Vector3 delta = other.transform.position - transform.position;
+            float dist = delta.sqrMagnitude;
+            float minDist = radius + other.radius;
+        }
+        }
 
     private void HandleBoundaryBox()
     {

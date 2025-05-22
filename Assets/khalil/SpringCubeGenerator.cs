@@ -14,6 +14,14 @@ public class SpringCubeGenerator : MonoBehaviour
         GenerateCube();
     }
 
+    void FixedUpdate()
+    {
+        foreach (SpringPoint point in points)
+        {
+            point.HandleBoundaryBox(); // Ensure each point stays within bounds
+        }
+    }
+
     void GenerateCube()
     {
         Vector3[] offsets = new Vector3[]
@@ -76,14 +84,40 @@ public class SpringCubeGenerator : MonoBehaviour
         Connect(createdPoints, 3, 4);
     }
 
+    //void Connect(SpringPoint[] points, int i, int j)
+    //{
+    //    float restLength = Vector3.Distance(points[i].transform.position, points[j].transform.position);
+
+    //    Connection c1 = new Connection
+    //    {
+    //        point = points[j],
+    //        restLength = restLength,
+    //        springConstant = 20f,
+    //        damperConstant = 1.0f
+    //    };
+    //    points[i].connections.Add(c1);
+
+    //    Connection c2 = new Connection
+    //    {
+    //        point = points[i],
+    //        restLength = restLength,
+    //        springConstant = 20f,
+    //        damperConstant = 1.0f
+    //    };
+    //    points[j].connections.Add(c2);
+    //}
     void Connect(SpringPoint[] points, int i, int j)
     {
+        // Rest length should be the distance between the two points at the start
         float restLength = Vector3.Distance(points[i].transform.position, points[j].transform.position);
+
+        // Prevent rest length from being too large or too small
+        restLength = Mathf.Clamp(restLength, 0.5f, 3f);
 
         Connection c1 = new Connection
         {
             point = points[j],
-            restLength = restLength,
+            restLength = restLength, // Initialize to the actual distance between points
             springConstant = 20f,
             damperConstant = 1.0f
         };
@@ -92,10 +126,11 @@ public class SpringCubeGenerator : MonoBehaviour
         Connection c2 = new Connection
         {
             point = points[i],
-            restLength = restLength,
+            restLength = restLength, // Same for the reverse connection
             springConstant = 20f,
             damperConstant = 1.0f
         };
         points[j].connections.Add(c2);
     }
+
 }

@@ -45,7 +45,7 @@ public class SpringPoint : MonoBehaviour
 
         foreach (Connection connection in connections)
         {
-            connection.springConstant = 10f;
+            connection.springConstant = 20f;
             connection.damperConstant = 0.5f;
             if (connection.point != null)
             {
@@ -199,7 +199,7 @@ public class SpringPoint : MonoBehaviour
                 float totalInverseMass = (isFixed ? 0 : 1 / mass) + (other.isFixed ? 0 : 1 / other.mass);
                 if (totalInverseMass == 0) continue;
 
-                Vector3 correction = normal * (penetration / totalInverseMass)*6;
+                Vector3 correction = normal * (penetration / totalInverseMass)*4;
                 velocity *= (1 - friction);
 
                 //Vector3 correction = normal * (penetration / totalInverseMass);

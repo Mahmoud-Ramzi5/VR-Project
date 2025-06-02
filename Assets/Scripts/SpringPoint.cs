@@ -8,6 +8,14 @@ public class Connection
     public float springConstant = 10f;
     public float damperConstant = 0.5f;
     public float restLength = 1f;
+
+    public Connection(SpringPoint point, float restLength, float springConstant, float damperConstant)
+    {
+        this.point = point;
+        this.restLength = restLength;
+        this.springConstant = springConstant;
+        this.damperConstant = damperConstant;
+    }
 }
 
 public class SpringPoint : MonoBehaviour
@@ -45,8 +53,6 @@ public class SpringPoint : MonoBehaviour
 
         foreach (Connection connection in connections)
         {
-            connection.springConstant = 20f;
-            connection.damperConstant = 0.5f;
             if (connection.point != null)
             {
                 // Set the correct rest length based on the initial positions of the SpringPoints.
@@ -315,5 +321,45 @@ public class SpringPoint : MonoBehaviour
     private void OnDestroy()
     {
         allParticles.Remove(this);
+    }
+
+    // Add this to maintain shape against mesh boundaries
+    public void ConstrainToMesh(Mesh mesh, Transform meshTransform)
+    {
+        Vector3 localPos = meshTransform.InverseTransformPoint(transform.position);
+
+        if (!mesh.bounds.Contains(localPos))
+        {
+            // Find closest point on mesh surface
+            Vector3 closestSurfacePoint = FindClosestMeshPoint(mesh, meshTransform);
+            Vector3 correction = closestSurfacePoint - transform.position;
+
+            // Apply correction
+            if (!isFixed)
+            {
+                transform.position += correction * 0.1f; // Small correction to avoid jitter
+                velocity -= Vector3.Project(velocity, correction.normalized) * 0.5f;
+            }
+        }
+    }
+
+    private Vector3 FindClosestMeshPoint(Mesh mesh, Transform meshTransform)
+    {
+        // Simple implementation - for better results use raycasting or proper mesh queries
+        Vector3 localPos = meshTransform.InverseTransformPoint(transform.position);
+        Vector3 closest = mesh.vertices[0];
+        float minDist = Vector3.Distance(localPos, closest);
+
+        foreach (Vector3 vertex in mesh.vertices)
+        {
+            float dist = Vector3.Distance(localPos, vertex);
+            if (dist < minDist)
+            {
+                minDist = dist;
+                closest = vertex;
+            }
+        }
+
+        return meshTransform.TransformPoint(closest);
     }
 }

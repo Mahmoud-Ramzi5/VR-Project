@@ -4,8 +4,12 @@ using System.Collections.Generic;
 public class SpringCubeGenerator : MonoBehaviour
 {
     public SpringPoint springPointPrefab;
-    public float spacing = 1f;
     public bool fixBottomCorners = true;
+    public float spacing = 2f;
+    [Range(0.1f, 5f)] public float connectionRadius = 2f;
+    public float springConstant = 100f;
+    public float damperConstant = 1.0f;
+    public int gridSize = 3; // Creates a gridSize x gridSize x gridSize cube
 
     private List<SpringPoint> points = new List<SpringPoint>();
 
@@ -18,119 +22,108 @@ public class SpringCubeGenerator : MonoBehaviour
     {
         foreach (SpringPoint point in points)
         {
-            point.HandleBoundaryBox(); // Ensure each point stays within bounds
+            point.HandleBoundaryBox();
         }
+
+
     }
 
     void GenerateCube()
     {
-        Vector3[] offsets = new Vector3[]
+        // Clear any existing points
+        foreach (var point in points)
         {
-            new Vector3(0, 0, 0), // 0
-            new Vector3(1, 0, 0), // 1
-            new Vector3(0, 1, 0), // 2
-            new Vector3(1, 1, 0), // 3
-            new Vector3(0, 0, 1), // 4
-            new Vector3(1, 0, 1), // 5
-            new Vector3(0, 1, 1), // 6
-            new Vector3(1, 1, 1)  // 7
-        };
+            if (point != null) Destroy(point.gameObject);
+        }
+        points.Clear();
 
-        SpringPoint[] createdPoints = new SpringPoint[8];
-
-        for (int i = 0; i < 8; i++)
+        // Create grid of points
+        for (int x = 0; x < gridSize; x++)
         {
-            Vector3 worldPos = transform.position + offsets[i] * spacing;
-            createdPoints[i] = Instantiate(springPointPrefab, worldPos, Quaternion.identity);
-            createdPoints[i].name = "Point_" + i;
+            for (int y = 0; y < gridSize; y++)
+            {
+                for (int z = 0; z < gridSize; z++)
+                {
+                    Vector3 worldPos = transform.position + new Vector3(x, y, z) * spacing;
+                    SpringPoint newPoint = Instantiate(springPointPrefab, worldPos, Quaternion.identity);
+                    newPoint.name = $"Point_{x}_{y}_{z}";
 
-            //if (fixBottomCorners && (i == 0 || i == 1 || i == 4 || i == 5))
-            //    createdPoints[i].isFixed = true;
+                    // Fix bottom layer if enabled
+                    if (fixBottomCorners && y == 0)
+                    {
+                        newPoint.isFixed = true;
+                    }
 
-            points.Add(createdPoints[i]);
+                    points.Add(newPoint);
+                }
+            }
         }
 
-        Connect(createdPoints, 0, 1); // Edges
-        Connect(createdPoints, 0, 2);
-        Connect(createdPoints, 0, 4);
-        Connect(createdPoints, 1, 3);
-        Connect(createdPoints, 1, 5);
-        Connect(createdPoints, 2, 3);
-        Connect(createdPoints, 2, 6);
-        Connect(createdPoints, 3, 7);
-        Connect(createdPoints, 4, 5);
-        Connect(createdPoints, 4, 6);
-        Connect(createdPoints, 5, 7);
-        Connect(createdPoints, 6, 7);
-
-        // Face diagonals
-        Connect(createdPoints, 0, 3);
-        Connect(createdPoints, 1, 2);
-        Connect(createdPoints, 4, 7);
-        Connect(createdPoints, 5, 6);
-        Connect(createdPoints, 0, 5);
-        Connect(createdPoints, 1, 4);
-        Connect(createdPoints, 2, 7);
-        Connect(createdPoints, 3, 6);
-        Connect(createdPoints, 0, 6);
-        Connect(createdPoints, 2, 4);
-        Connect(createdPoints, 1, 7);
-        Connect(createdPoints, 3, 5);
-
-        // Body diagonals
-        Connect(createdPoints, 0, 7);
-        Connect(createdPoints, 1, 6);
-        Connect(createdPoints, 2, 5);
-        Connect(createdPoints, 3, 4);
+        // Create dynamic connections based on proximity
+        CreateDynamicConnections();
     }
 
-    //void Connect(SpringPoint[] points, int i, int j)
-    //{
-    //    float restLength = Vector3.Distance(points[i].transform.position, points[j].transform.position);
-
-    //    Connection c1 = new Connection
-    //    {
-    //        point = points[j],
-    //        restLength = restLength,
-    //        springConstant = 20f,
-    //        damperConstant = 1.0f
-    //    };
-    //    points[i].connections.Add(c1);
-
-    //    Connection c2 = new Connection
-    //    {
-    //        point = points[i],
-    //        restLength = restLength,
-    //        springConstant = 20f,
-    //        damperConstant = 1.0f
-    //    };
-    //    points[j].connections.Add(c2);
-    //}
-    void Connect(SpringPoint[] points, int i, int j)
+    void CreateDynamicConnections()
     {
-        // Rest length should be the distance between the two points at the start
-        float restLength = Vector3.Distance(points[i].transform.position, points[j].transform.position);
-
-        // Prevent rest length from being too large or too small
-        restLength = Mathf.Clamp(restLength, 0.5f, 3f);
-
-        Connection c1 = new Connection
+        // For each point, find nearby points and create connections
+        for (int i = 0; i < points.Count; i++)
         {
-            point = points[j],
-            restLength = restLength, // Initialize to the actual distance between points
-            springConstant = 20f,
-            damperConstant = 1.0f
-        };
-        points[i].connections.Add(c1);
+            SpringPoint currentPoint = points[i];
 
-        Connection c2 = new Connection
-        {
-            point = points[i],
-            restLength = restLength, // Same for the reverse connection
-            springConstant = 20f,
-            damperConstant = 1.0f
-        };
-        points[j].connections.Add(c2);
+            for (int j = i + 1; j < points.Count; j++)
+            {
+                SpringPoint otherPoint = points[j];
+                float distance = Vector3.Distance(currentPoint.transform.position, otherPoint.transform.position);
+
+                // Connect if within radius and not already connected
+                if (distance <= connectionRadius * spacing && !IsConnected(currentPoint, otherPoint))
+                {
+                    ConnectPoints(currentPoint, otherPoint, distance);
+                }
+            }
+        }
     }
 
+    bool IsConnected(SpringPoint a, SpringPoint b)
+    {
+        // Check if a is already connected to b
+        foreach (var conn in a.connections)
+        {
+            if (conn.point == b) return true;
+        }
+        return false;
+    }
+
+    void ConnectPoints(SpringPoint a, SpringPoint b, float distance)
+    {
+        // Clamp rest length to reasonable values
+        float restLength = Mathf.Clamp(distance, 0.5f, 3f);
+
+        Connection c1 = new Connection(b, restLength, springConstant, damperConstant);
+        a.connections.Add(c1);
+
+        Connection c2 = new Connection(a, restLength, springConstant, damperConstant);
+        b.connections.Add(c2);
+    }
+
+    void OnDrawGizmos()
+    {
+        // Draw the connection radius for visualization
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireCube(
+            transform.position + new Vector3(gridSize - 1, gridSize - 1, gridSize - 1) * spacing * 0.5f,
+            new Vector3(gridSize, gridSize, gridSize) * spacing
+        );
+
+        // Draw connection radius spheres at each point
+        if (Application.isPlaying)
+        {
+            Gizmos.color = new Color(1, 0, 0, 0.1f);
+            foreach (var point in points)
+            {
+                if (point != null)
+                    Gizmos.DrawSphere(point.transform.position, connectionRadius * spacing);
+            }
+        }
+    }
 }

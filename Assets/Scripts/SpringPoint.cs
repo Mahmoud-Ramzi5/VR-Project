@@ -42,6 +42,15 @@ public class SpringPoint : MonoBehaviour
 
     private LineRenderer lineRenderer;
 
+    private void Awake()
+    {
+        // Initialize connections if null
+        if (connections == null)
+        {
+            connections = new List<Connection>();
+        }
+    }
+
     private void Start()
     {
         allParticles.Add(this);
@@ -49,6 +58,13 @@ public class SpringPoint : MonoBehaviour
         {
             particle.radius = 0.3f;
         }
+
+        lineRenderer = gameObject.AddComponent<LineRenderer>();
+        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        lineRenderer.startColor = Color.white;
+        lineRenderer.endColor = Color.white;
+        lineRenderer.startWidth = 0.05f;
+        lineRenderer.endWidth = 0.05f;
 
 
         foreach (Connection connection in connections)
@@ -59,13 +75,6 @@ public class SpringPoint : MonoBehaviour
                 connection.restLength = Vector3.Distance(transform.position, connection.point.transform.position);
             }
         }
-
-        lineRenderer = gameObject.AddComponent<LineRenderer>();
-        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-        lineRenderer.startColor = Color.white;
-        lineRenderer.endColor = Color.white;
-        lineRenderer.startWidth = 0.05f;
-        lineRenderer.endWidth = 0.05f;
     }
 
     private void FixedUpdate()

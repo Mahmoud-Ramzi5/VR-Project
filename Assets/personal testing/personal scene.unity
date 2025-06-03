@@ -347,6 +347,8 @@ GameObject:
   - component: {fileID: 917652642}
   - component: {fileID: 917652643}
   - component: {fileID: 917652644}
+  - component: {fileID: 917652646}
+  - component: {fileID: 917652645}
   m_Layer: 0
   m_Name: myTesting Game object
   m_TagString: Untagged
@@ -363,8 +365,8 @@ Transform:
   m_GameObject: {fileID: 917652639}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0, y: 1.5, z: 0}
+  m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
@@ -415,7 +417,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 917652639}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bb982ff2a731318438434f1a3f7543f1, type: 3}
   m_Name: 
@@ -428,6 +430,37 @@ MonoBehaviour:
   damperConstant: 0.01
   connectionRangeMultiplier: 10
   visualizeConnections: 1
+--- !u!114 &917652645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 917652639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78cdeb1a0783f8a4a9ba21a52464dbcc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  springPointPrefab: {fileID: 6257396218766619296, guid: 5f84cf576a6cb0f4c9cdc07b7d33ea53, type: 3}
+  particleSpacing: 0.3
+  particleRadius: 0.3
+  constrainToMesh: 1
+  createSurfaceParticles: 1
+  createInternalParticles: 1
+  springConstant: 10
+  damperConstant: 0.5
+  maxConnectionDistance: 1.5
+  fixSurfaceParticles: 0
+  fixCornerParticles: 0
+--- !u!33 &917652646
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 917652639}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0
@@ -805,7 +838,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!135 &1784456588
 SphereCollider:
   m_ObjectHideFlags: 0

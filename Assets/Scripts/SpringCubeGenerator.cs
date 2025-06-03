@@ -24,8 +24,6 @@ public class SpringCubeGenerator : MonoBehaviour
         {
             point.HandleBoundaryBox();
         }
-
-
     }
 
     void GenerateCube()

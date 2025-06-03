@@ -223,7 +223,7 @@ public class SpringPoint : MonoBehaviour
                 if (!other.isFixed)
                     other.transform.position += correction * (1 / other.mass) / totalInverseMass;
 
-                Debug.Log("correction is"+correction);
+                //Debug.Log("correction is"+correction);
 
                 Vector3 relVel = velocity - other.velocity;
                 float velAlongNormal = Vector3.Dot(relVel, normal);

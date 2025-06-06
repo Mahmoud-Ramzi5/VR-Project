@@ -24,7 +24,7 @@ public class SpringPoint : MonoBehaviour
     private static List<SpringPoint> allParticles = new List<SpringPoint>();
 
     public float mass = 1f;
-    public float radius = 20f;
+    public float radius = 0.5f;
     public Vector3 velocity;
     private Vector3 acceleration;
     public bool isFixed = false;
@@ -56,7 +56,7 @@ public class SpringPoint : MonoBehaviour
         allParticles.Add(this);
         foreach (SpringPoint particle in allParticles)
         {
-            particle.radius = 0.3f;
+            particle.radius = 0.5f;
         }
 
         lineRenderer = gameObject.AddComponent<LineRenderer>();
@@ -72,59 +72,54 @@ public class SpringPoint : MonoBehaviour
             if (connection.point != null)
             {
                 // Set the correct rest length based on the initial positions of the SpringPoints.
-                connection.restLength = Vector3.Distance(transform.position, connection.point.transform.position);
+                //connection.restLength = Vector3.Distance(transform.position, connection.point.transform.position);
             }
         }
     }
 
     private void FixedUpdate()
     {
-        float deltaTime = Time.fixedDeltaTime;
         if (isFixed) return;
 
+        float deltaTime = Time.fixedDeltaTime;
         Vector3 netForce = applyGravity ? gravity * mass : Vector3.zero;
 
-        //foreach (Connection connection in connections)
-        //{
-        //    if (connection.point == null) continue;
-
-        //    Vector3 dir = connection.point.transform.position - transform.position;
-        //    float dist = dir.magnitude;
-        //    if (dist < 0.001f) continue;
-
-        //    Vector3 norm = dir / dist;
-        //    float stretch = dist - connection.restLength;
-
-        //    // Hooke's Law
-        //    //Vector3 springForce = connection.springConstant * stretch * norm;
-        //    Vector3 springForce = connection.springConstant * Mathf.Clamp(stretch, -connection.restLength, connection.restLength) * norm;
-
-        //    // Damping
-        //    Vector3 relativeVelocity = connection.point.velocity - velocity;
-        //    Vector3 dampingForce = connection.damperConstant * Vector3.Dot(relativeVelocity, norm) * norm;
-
-        //    Vector3 totalForce = springForce + dampingForce;
-
-        //    // Apply equal and opposite forces
-        //    if (!connection.point.isFixed)
-        //        connection.point.acceleration -= (totalForce) / connection.point.mass;
-
-        //    netForce += totalForce;
-        //}
-        ApplySpringForces(connections);
-        // Apply force to this point
+        netForce += CalculateSpringForces();
         acceleration = netForce / mass;
 
         // Semi-implicit Euler integration
         velocity += acceleration * deltaTime;
         transform.position += velocity * deltaTime;
-        MaintainCubeShape();
+
+        if (velocity.magnitude < 0.001f)
+            velocity = Vector3.zero;
+
         HandleCollisions();
         HandleBoundaryBox();
     }
 
+    private void LateUpdate()
+    {
+        UpdateDynamicBounds();
+    }
 
-    private void ApplySpringForces(List<Connection> connections)
+
+    private void Update()
+    {
+        if (lineRenderer == null) return;
+
+        lineRenderer.positionCount = connections.Count * 2;
+        int index = 0;
+        foreach (Connection conn in connections)
+        {
+            if (conn.point == null) continue;
+            lineRenderer.SetPosition(index++, transform.position);
+            lineRenderer.SetPosition(index++, conn.point.transform.position);
+        }
+    }
+
+
+    private Vector3 CalculateSpringForces()
     {
         Vector3 netForce = Vector3.zero;
 
@@ -156,7 +151,6 @@ public class SpringPoint : MonoBehaviour
             springForce *= boundaryFactor;
 
             // Apply damping to prevent sliding at higher speeds
-            Vector3 velocityDirection = velocity.normalized;
             float velocityAlongSpring = Vector3.Dot(velocity, direction.normalized);
             Vector3 dampingForce = connection.damperConstant * velocityAlongSpring * direction.normalized;
 
@@ -164,37 +158,7 @@ public class SpringPoint : MonoBehaviour
             netForce += springForce - dampingForce;
         }
 
-        // Apply net force to the point (rest of the code for acceleration and velocity updates)
-        acceleration = netForce / mass;
-        velocity += acceleration * Time.fixedDeltaTime;
-    }
-
-
-
-    private void MaintainCubeShape()
-    {
-        foreach (SpringPoint other in allParticles)
-        {
-            if (other == this || other == null) continue;
-
-            // Calculate the direction between the two particles
-            Vector3 direction = other.transform.position - transform.position;
-            float dist = direction.magnitude;
-            float minDist = radius + other.radius;
-
-            // Apply spring force to maintain the distance between connected points
-            if (dist < minDist)
-            {
-                // If particles are too close, you can use a correction vector
-                Vector3 correction = direction.normalized * (minDist - dist);
-
-                // Apply corrective forces to maintain shape
-                if (!isFixed)
-                    transform.position += correction * 0.5f; // Apply half the correction
-                if (!other.isFixed)
-                    other.transform.position -= correction * 0.5f; // Apply the other half
-            }
-        }
+        return netForce;
     }
 
     private void HandleCollisions()
@@ -250,17 +214,29 @@ public class SpringPoint : MonoBehaviour
             }
         }
     }
-    public void HandleInsideCollision()
-    {
-        foreach (SpringPoint other in allParticles)
-        {
-            if (other == this || other == null) continue;
 
-            Vector3 delta = other.transform.position - transform.position;
-            float dist = delta.sqrMagnitude;
-            float minDist = radius + other.radius;
+    public void HandleBoundaryBox()
+    {
+        Vector3 pos = transform.position;
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (pos[i] - radius < boundsMin[i]) // Point is past the min boundary
+            {
+                pos[i] = boundsMin[i] + radius;
+                velocity[i] = Mathf.Max(velocity[i], 0f); // Prevent moving further into the boundary
+                velocity *= (1f - friction);              // Apply friction to slow down sliding
+            }
+            else if (pos[i] + radius > boundsMax[i]) // Point is past the max boundary
+            {
+                pos[i] = boundsMax[i] - radius;
+                velocity[i] = Mathf.Min(velocity[i], 0f); // Prevent moving further out of the 
+                velocity *= (1f - friction);              // Apply friction to slow down sliding
+            }
         }
-        }
+
+        transform.position = pos;
+    }
 
     //private void HandleBoundaryBox()
     //{
@@ -285,52 +261,27 @@ public class SpringPoint : MonoBehaviour
     //    transform.position = pos;
     //}
 
-    public void HandleBoundaryBox()
+    private void UpdateDynamicBounds()
     {
-        Vector3 pos = transform.position;
-
-        for (int i = 0; i < 3; i++)
+        if (transform.parent != null)
         {
-            if (pos[i] - radius < boundsMin[i]) // Point is past the min boundary
-            {
-                pos[i] = boundsMin[i] + radius;
-                velocity[i] = Mathf.Max(velocity[i], 0f); // Prevent moving further into the boundary
-                                                          // Apply friction to slow down sliding
-                velocity *= (1f - friction);
-            }
-            else if (pos[i] + radius > boundsMax[i]) // Point is past the max boundary
-            {
-                pos[i] = boundsMax[i] - radius;
-                velocity[i] = Mathf.Min(velocity[i], 0f); // Prevent moving further out of the boundary
-                                                          // Apply friction to slow down sliding
-                velocity *= (1f - friction);
-            }
+            Vector3 parentPos = transform.parent.position;
+            boundsMin = parentPos + new Vector3(-5f, 0f, -5f);
+            boundsMax = parentPos + new Vector3(5f, 5f, 5f);
         }
-
-        transform.position = pos;
     }
 
-
-
-
-    private void Update()
+    private void OnDrawGizmosSelected()
     {
-        if (lineRenderer == null) return;
-
-        lineRenderer.positionCount = connections.Count * 2;
-        int index = 0;
-        foreach (Connection conn in connections)
-        {
-            if (conn.point == null) continue;
-            lineRenderer.SetPosition(index++, transform.position);
-            lineRenderer.SetPosition(index++, conn.point.transform.position);
-        }
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireCube((boundsMin + boundsMax) * 0.5f, boundsMax - boundsMin);
     }
 
     private void OnDestroy()
     {
         allParticles.Remove(this);
     }
+
 
     // Add this to maintain shape against mesh boundaries
     public void ConstrainToMesh(Mesh mesh, Transform meshTransform)

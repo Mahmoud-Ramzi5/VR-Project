@@ -4,22 +4,22 @@ using UnityEngine;
 public class OctreeNode
 {
     public Bounds worldBounds, localBounds;
-    public OctreeNode[] children;
     public List<Vector3> pointsPositions = new List<Vector3>();
+    public OctreeNode[] children;
     public bool isDivided;
 
     public OctreeNode(Bounds nodeWorldBounds, Bounds nodeLocalbounds)
     {
         worldBounds = nodeWorldBounds;
         localBounds = nodeLocalbounds;
+        isDivided = false;
     }
 
     public bool Divide(float minSize)
     {
         // If the node size is already small enough, do not subdivide further
-        // we are comparing node size on x-axis only
-        //if (bounds.size.x <= minSize) return false;
-        if (worldBounds.size.x <= minSize) return false;
+        if (worldBounds.size.x <= minSize || worldBounds.size.y <= minSize || worldBounds.size.z <= minSize)
+            return false;
 
         // Calculate offset to place child nodes relative to this node's center
         float worldQuarter = worldBounds.size.x / 4f;

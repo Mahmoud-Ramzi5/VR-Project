@@ -29,6 +29,7 @@ public class OctreeSpringFiller : MonoBehaviour
     void Start()
     {
         targetMesh = GetComponent<MeshFilter>().mesh;
+        targetMesh.RecalculateBounds();
 
         meshBounds = targetMesh.bounds;
         meshVertices = targetMesh.vertices;
@@ -37,35 +38,73 @@ public class OctreeSpringFiller : MonoBehaviour
         FillObjectWithSpringPoints();
     }
 
-    void FixedUpdate()
-    {
-        foreach (SpringPoint point in allSpringPoints)
-        {
-            point.HandleBoundaryBox();
-        }
-    }
+    //public void FillObjectWithSpringPoints()
+    //{
+    //    ClearExistingPoints();
 
+    //    // Create world-space bounds
+    //    Bounds localBounds = meshBounds;
+    //    Debug.Log($"localBounds {localBounds}");
+
+    //    Vector3 worldCenter = transform.TransformPoint(localBounds.center);
+    //    Vector3 worldSize = Vector3.Scale(localBounds.size, transform.lossyScale);
+    //    Bounds worldBounds = new Bounds(worldCenter, worldSize);
+    //    Debug.Log($"worldBounds {worldBounds}");
+
+    //    rootNode = new OctreeNode(worldBounds, localBounds);
+    //    int total_nodes = BuildOctree(rootNode);
+    //    Debug.Log($"total_nodes {total_nodes}");
+
+    //    CreateSpringPoints();
+    //    CreateSpringConnections();
+
+    //    Debug.Log($"Created {allSpringPoints.Count} spring points");
+    //}
     public void FillObjectWithSpringPoints()
     {
         ClearExistingPoints();
 
-        // Create world-space bounds
-        Bounds localBounds = meshBounds;
+        // Recalculate accurate world-space bounds
+        if (meshVertices.Length <= 0) {
+            Debug.Log("Vertices Error");
+            return;
+        }
 
-        Vector3 worldCenter = transform.TransformPoint(localBounds.center);
-        Vector3 worldSize = Vector3.Scale(localBounds.size, transform.lossyScale);
-        Bounds worldBounds = new Bounds(worldCenter, worldSize);
-        Debug.Log($"worldBounds {worldBounds}");
+        // TransformPoint converts the local mesh vertice dependent on the transform
+        // position, scale and orientation into a global position
+        Vector3 min = transform.TransformPoint(meshVertices[0]);
+        Vector3 max = min;
 
-        rootNode = new OctreeNode(worldBounds, localBounds);
+
+        // Iterate through all vertices
+        // except first one
+        for (var i = 1; i < meshVertices.Length; i++)
+        {
+            var V = transform.TransformPoint(meshVertices[i]);
+
+            // Go through X,Y and Z of the Vector3
+            for (var n = 0; n < 3; n++)
+            {
+                max = Vector3.Max(V, max);
+                min = Vector3.Min(V, min);
+            }
+        }
+
+        Bounds worldBounds = new Bounds();
+        worldBounds.SetMinMax(min, max);
+        Debug.Log($"World Bounds: {worldBounds}");
+        rootNode = new OctreeNode(worldBounds, meshBounds);
+
+        // Build and fill the octree
         int total_nodes = BuildOctree(rootNode);
-        Debug.Log($"total_nodes {total_nodes}");
+        Debug.Log($"Octree Nodes: {total_nodes}");
 
-        CreateSpringPointObjects();
+        CreateSpringPoints();
         CreateSpringConnections();
 
-        Debug.Log($"Created {allSpringPoints.Count} spring points");
+        Debug.Log($"Created {allSpringPoints.Count} spring points.");
     }
+
 
     void ClearExistingPoints()
     {
@@ -81,20 +120,7 @@ public class OctreeSpringFiller : MonoBehaviour
     {
         int total_nodes = 0;
 
-        if (node.isDivided)
-        {
-            total_nodes += node.children.Length;
-            foreach (var child in node.children)
-            {
-                int childCount = BuildOctree(child);
-                if (childCount > 0)
-                {
-                    total_nodes += childCount;
-                    total_nodes -= 1;
-                }
-            }
-        }
-        if (node.Divide(minNodeSize))
+        if (node.isDivided || node.Divide(minNodeSize))
         {
             total_nodes += node.children.Length;
             foreach (var child in node.children)
@@ -163,11 +189,11 @@ public class OctreeSpringFiller : MonoBehaviour
 
                     if (!alreadyExists)
                     {
-                        //if (IsPointInsideMesh(worldPos))
-                        //{
-                        allPointPositions.Add(worldPos);
-                        node.pointsPositions.Add(worldPos);
-                        //}
+                        if (IsPointInsideMesh(worldPos))
+                        {
+                            allPointPositions.Add(worldPos);
+                            node.pointsPositions.Add(worldPos);
+                        }
                     }
                 }
             }
@@ -191,11 +217,11 @@ public class OctreeSpringFiller : MonoBehaviour
 
                 if (!alreadyExists)
                 {
-                    //if (IsPointInsideMesh(worldPos))
-                    //{
-                    allPointPositions.Add(worldPos);
-                    node.pointsPositions.Add(worldPos);
-                    //}
+                    if (IsPointInsideMesh(worldPos))
+                    {
+                        allPointPositions.Add(worldPos);
+                        node.pointsPositions.Add(worldPos);
+                    }
                 }
                 result = true;
             }
@@ -205,7 +231,7 @@ public class OctreeSpringFiller : MonoBehaviour
     }
 
 
-    void CreateSpringPointObjects()
+    void CreateSpringPoints()
     {
         foreach (var node in GetAllLeafNodes(rootNode))
         {
@@ -214,17 +240,28 @@ public class OctreeSpringFiller : MonoBehaviour
                 SpringPoint point;
                 if (springPointPrefab != null)
                 {
-                    point = Instantiate(springPointPrefab, worldPos, Quaternion.identity);
-                    point.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
+                    //point = Instantiate(springPointPrefab, worldPos, Quaternion.identity);
+                    //point.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
+                    //point.transform.SetParent(transform);
+
+                    // Instantiate as child and use localPosition
+                    point = Instantiate(springPointPrefab, transform);
+                    point.transform.localPosition = transform.InverseTransformPoint(worldPos);
                 }
                 else
                 {
-                    // TODO: handle no prefab
-                    point = Instantiate(new SpringPoint(), worldPos, Quaternion.identity);
+                    // Create fallback GameObject with SpringPoint if prefab is missing
+                    GameObject fallbackGO = new GameObject("SpringPoint_Fallback");
+                    fallbackGO.transform.parent = transform;
+                    fallbackGO.transform.localPosition = transform.InverseTransformPoint(worldPos);
+
+                    point = fallbackGO.AddComponent<SpringPoint>();
                 }
 
-                point.transform.SetParent(transform);
+                point.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
                 point.radius = particleSpacing * 0.5f;
+                point.connections = new List<Connection>();
+                point.isFixed = IsCornerPoint(transform.InverseTransformPoint(worldPos));
 
                 // Set bounds to match mesh bounds
                 //point.boundsMin = transform.TransformPoint(meshBounds.min);
@@ -232,12 +269,7 @@ public class OctreeSpringFiller : MonoBehaviour
 
                 // for debuging
                 point.isFixed = true;
-                point.connections = new List<Connection>();
 
-                if (true && IsCornerPoint(transform.InverseTransformPoint(worldPos)))
-                {
-                    point.isFixed = true;
-                }
 
                 allSpringPoints.Add(point);
             }
@@ -341,19 +373,17 @@ public class OctreeSpringFiller : MonoBehaviour
         Vector3.up,
         Vector3.down,
         Vector3.back
-    };
+        };
 
-        int insideCount = 0;
 
         foreach (Vector3 dir in testDirections)
         {
             int intersections = CountRayIntersections(localPoint, dir);
             if (intersections % 2 == 1) // if odd number of intersections
-                insideCount++;
+                return true; // point is inside mesh
         }
 
-        // Consider inside if majority of tests agree
-        return insideCount > testDirections.Length / 2;
+        return false;
     }
 
     int CountRayIntersections(Vector3 origin, Vector3 direction)

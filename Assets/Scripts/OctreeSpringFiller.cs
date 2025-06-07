@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using static UnityEngine.ParticleSystem;
+using System.Runtime.CompilerServices;
 
 public class OctreeSpringFiller : MonoBehaviour
 {
@@ -36,6 +37,17 @@ public class OctreeSpringFiller : MonoBehaviour
         meshTriangles = targetMesh.triangles;
 
         FillObjectWithSpringPoints();
+    }
+
+    void FixedUpdate()
+    {
+        foreach (SpringPoint point in allSpringPoints)
+        {
+            if (!point.isFixed)
+            {
+                point.ConstrainToMesh(targetMesh, transform);
+            }
+        }
     }
 
     //public void FillObjectWithSpringPoints()
@@ -241,7 +253,6 @@ public class OctreeSpringFiller : MonoBehaviour
                 if (springPointPrefab != null)
                 {
                     //point = Instantiate(springPointPrefab, worldPos, Quaternion.identity);
-                    //point.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
                     //point.transform.SetParent(transform);
 
                     // Instantiate as child and use localPosition
@@ -258,18 +269,13 @@ public class OctreeSpringFiller : MonoBehaviour
                     point = fallbackGO.AddComponent<SpringPoint>();
                 }
 
-                point.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
                 point.radius = particleSpacing * 0.5f;
                 point.connections = new List<Connection>();
+                point.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
                 point.isFixed = IsCornerPoint(transform.InverseTransformPoint(worldPos));
 
-                // Set bounds to match mesh bounds
-                //point.boundsMin = transform.TransformPoint(meshBounds.min);
-                //point.boundsMax = transform.TransformPoint(meshBounds.max);
-
                 // for debuging
-                point.isFixed = true;
-
+                //point.isFixed = true;
 
                 allSpringPoints.Add(point);
             }
@@ -362,7 +368,7 @@ public class OctreeSpringFiller : MonoBehaviour
         Vector3 localPoint = transform.InverseTransformPoint(point);
 
         // 1. Fast bounding box check
-        if (!meshBounds.Contains(localPoint))
+        if (meshBounds.Contains(localPoint))
             return true;
 
         // 2. Use multiple ray directions to increase reliability

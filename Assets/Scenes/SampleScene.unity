@@ -579,7 +579,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d22961ceb7a538e4bbead624fcd9e828, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  springPointPrefab: {fileID: 6257396218766619296, guid: 5f84cf576a6cb0f4c9cdc07b7d33ea53, type: 3}
+  springPointPrefab: {fileID: -5637772526656094594, guid: 1c746a47d5d9fe24eb64c130e6f93c28, type: 3}
   minNodeSize: 0.5
   particleSpacing: 0.5
   visualizeConnections: 1

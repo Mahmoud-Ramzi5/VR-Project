@@ -1,8 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
-using static UnityEngine.ParticleSystem;
-using System.Runtime.CompilerServices;
+using static UnityEditor.Searcher.SearcherWindow.Alignment;
+
 
 public class OctreeSpringFiller : MonoBehaviour
 {
@@ -275,7 +275,7 @@ public class OctreeSpringFiller : MonoBehaviour
                 point.isFixed = IsCornerPoint(transform.InverseTransformPoint(worldPos));
 
                 // for debuging
-                //point.isFixed = true;
+                point.isFixed = true;
 
                 allSpringPoints.Add(point);
             }
@@ -367,29 +367,50 @@ public class OctreeSpringFiller : MonoBehaviour
         // Transform point to mesh's local space
         Vector3 localPoint = transform.InverseTransformPoint(point);
 
-        // 1. Fast bounding box check
-        if (meshBounds.Contains(localPoint))
-            return true;
+        // 1. Fast bounding box check - if outside, definitely outside mesh
+        if (!meshBounds.Contains(localPoint))
+            return false;
 
         // 2. Use multiple ray directions to increase reliability
-        Vector3[] testDirections = {
-        Vector3.forward,
+        Vector3[] baseDirections = {
         Vector3.left,
         Vector3.right,
+        Vector3.forward,
+        Vector3.back,
         Vector3.up,
-        Vector3.down,
-        Vector3.back
+        Vector3.down
         };
 
-
-        foreach (Vector3 dir in testDirections)
+        float originOffset = 1e-6f; // Small offset
+        float jitterAmount = 0.001f; // Small angle jitter
+        Vector3[] testDirections = new Vector3[baseDirections.Length];
+        for (int i = 0; i < baseDirections.Length; i++)
         {
-            int intersections = CountRayIntersections(localPoint, dir);
-            if (intersections % 2 == 1) // if odd number of intersections
+            // Create small random jitter vector
+            Vector3 jitter = new Vector3(
+                Random.Range(-jitterAmount, jitterAmount),
+                Random.Range(-jitterAmount, jitterAmount),
+                Random.Range(-jitterAmount, jitterAmount)
+            );
+
+            // Add jitter and normalize to keep direction unit length
+            // reduces the edges or vertices where the ray barely grazes the mesh
+            testDirections[i] = (baseDirections[i] + jitter).normalized;
+        }
+
+        // If *any* direction ray test says point is inside (odd intersections), we say inside
+        foreach (Vector3 direction in testDirections)
+        {
+            // Nudge the ray origin a bit forward, to avoid self-intersections
+            Vector3 rayOrigin = localPoint + direction * originOffset;
+
+            // Check intersections
+            int intersections = CountRayIntersections(rayOrigin, direction);
+            if (intersections % 2 == 1) // odd = inside
                 return true; // point is inside mesh
         }
 
-        return false;
+        return false; // All tests say outside
     }
 
     int CountRayIntersections(Vector3 origin, Vector3 direction)
@@ -417,25 +438,24 @@ public class OctreeSpringFiller : MonoBehaviour
         Vector3 p = Vector3.Cross(direction, e2);
         float det = Vector3.Dot(e1, p);
 
+        float epsilon = 1e-6f;
         // If determinant is near zero, ray is parallel
-        if (det < Mathf.Epsilon && det > -Mathf.Epsilon)
+        if (Mathf.Abs(det) < epsilon) // Ray parallel to triangle plane
             return false;
 
         float invDet = 1.0f / det;
         Vector3 t = origin - v1;
         float u = Vector3.Dot(t, p) * invDet;
-
-        if (u < 0 || u > 1)
+        if (u < 0f || u > 1f)
             return false;
 
         Vector3 q = Vector3.Cross(t, e1);
         float v = Vector3.Dot(direction, q) * invDet;
-
-        if (v < 0 || u + v > 1)
+        if (v < 0f || u + v > 1f)
             return false;
 
         float dist = Vector3.Dot(e2, q) * invDet;
-        return dist > Mathf.Epsilon;
+        return dist > epsilon;
     }
     //
 

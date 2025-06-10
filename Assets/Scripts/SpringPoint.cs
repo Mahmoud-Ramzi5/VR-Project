@@ -49,6 +49,7 @@ public class SpringPoint : MonoBehaviour
     public int triangleIndex;
 
     [HideInInspector] public Vector3 initialPosition;
+
     private void Awake()
     {
         // Initialize connections if null
@@ -92,8 +93,8 @@ public class SpringPoint : MonoBehaviour
         acceleration = netForce / mass;
 
         // Semi-implicit Euler integration
-        velocity += acceleration * deltaTime;
-        transform.position += velocity * deltaTime;
+        velocity += acceleration * fixedDt;
+        transform.position += velocity * fixedDt;
 
         if (velocity.magnitude < 0.001f)
             velocity = Vector3.zero;
@@ -141,10 +142,20 @@ public class SpringPoint : MonoBehaviour
             // Calculate how far the point is from the boundary
             for (int i = 0; i < 3; i++)
             {
-                if (transform.position[i] - radius < boundsMin[i] || transform.position[i] + radius > boundsMax[i])
+                //if (transform.position[i] - radius < boundsMin[i] || transform.position[i] + radius > boundsMax[i])
+                //{
+                //    // Reduce spring force near boundary
+                //    boundaryFactor = Mathf.Max(0.1f, boundaryFactor - 0.05f);
+                //}
+
+                float distToMin = transform.position[i] - radius - boundsMin[i];
+                float distToMax = boundsMax[i] - (transform.position[i] + radius);
+                float closestDist = Mathf.Min(distToMin, distToMax);
+                float threshold = 0.5f; // How far from boundary to start reducing
+
+                if (closestDist < threshold)
                 {
-                    // Reduce spring force near boundary
-                    boundaryFactor = Mathf.Max(0.1f, boundaryFactor - 0.05f);
+                    boundaryFactor = Mathf.Min(boundaryFactor, Mathf.Clamp01(closestDist / threshold));
                 }
             }
 
@@ -154,7 +165,7 @@ public class SpringPoint : MonoBehaviour
             // Apply damping to prevent sliding at higher speeds
             float velocityAlongSpring = Vector3.Dot(velocity, direction.normalized);
             Vector3 dampingForce = connection.damperConstant * velocityAlongSpring * direction.normalized;
-            
+
             // Combine forces
             netForce += springForce - dampingForce;
         }
@@ -200,7 +211,19 @@ public class SpringPoint : MonoBehaviour
                 if (!other.isFixed)
                     other.velocity -= impulse / other.mass;
 
-                Vector3 tangent = (relVel - velAlongNormal * normal).normalized;
+                Vector3 tangent = relVel - velAlongNormal * normal;
+                float tangentMag = tangent.magnitude;
+                if (tangentMag > 0.0001f)
+                {
+                    tangent /= tangentMag;
+                    // friction impulse calculations here
+                }
+                else
+                {
+                    tangent = Vector3.zero; // no friction impulse
+                }
+
+                tangent = tangent.normalized;
                 float jt = -Vector3.Dot(relVel, tangent) / (1 / mass + 1 / other.mass);
                 float mu = Mathf.Sqrt(friction * other.friction);
                 Vector3 frictionImpulse = Mathf.Abs(jt) < j * mu ? jt * tangent : -j * mu * tangent;
@@ -238,13 +261,11 @@ public class SpringPoint : MonoBehaviour
 
     public void UpdateBounds(Vector3 moveStep)
     {
-        Vector3 NodeCenter = nodeBounds.center;
-        Vector3 NodeSize = nodeBounds.size;
+        Vector3 newCenter = nodeBounds.center + moveStep;
+        nodeBounds = new Bounds(newCenter, nodeBounds.size);
 
-        nodeBounds = new Bounds(moveStep + NodeCenter, NodeSize);
-
-        boundsMin = NodeCenter - nodeBounds.extents;
-        boundsMax = NodeCenter + nodeBounds.extents;
+        boundsMin = newCenter - nodeBounds.extents;
+        boundsMax = newCenter + nodeBounds.extents;
     }
 
     public void DrawBoundingBox()

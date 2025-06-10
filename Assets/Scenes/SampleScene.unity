@@ -599,6 +599,12 @@ MonoBehaviour:
   springConstant: 10
   damperConstant: 0.5
   connectionRadius: 2
+  totalMass: 100
+  velocity: {x: 0, y: 0, z: 0}
+  gravity: {x: 0, y: -9.81, z: 0}
+  groundLevel: 0
+  groundBounce: 0.5
+  groundFriction: 0.8
   allSpringPoints: []
 --- !u!23 &1148229612
 MeshRenderer:
@@ -833,6 +839,12 @@ MonoBehaviour:
   springConstant: 10
   damperConstant: 0.5
   connectionRadius: 2
+  totalMass: 100
+  velocity: {x: 0, y: 0, z: 0}
+  gravity: {x: 0, y: -9.81, z: 0}
+  groundLevel: 0
+  groundBounce: 0.5
+  groundFriction: 0.8
   allSpringPoints: []
 --- !u!23 &2043315473
 MeshRenderer:

@@ -21,6 +21,15 @@ public class OctreeSpringFiller : MonoBehaviour
     private Vector3[] meshVertices;
     private int[] meshTriangles;
 
+    public float totalMass = 1f;
+    public Vector3 velocity = Vector3.zero;
+    public Vector3 gravity = new Vector3(0, -9.81f, 0);
+
+    [Header("Ground Collision")]
+    public float groundLevel = 0f;       // Y-position of the ground plane
+    public float groundBounce = 0.5f;   // Bounce coefficient (0 = no bounce, 1 = full bounce)
+    public float groundFriction = 0.8f; // Friction (0 = full stop, 1 = no friction)
+
     private List<Vector3> allPointPositions = new List<Vector3>();
     public List<SpringPoint> allSpringPoints = new List<SpringPoint>();
 
@@ -44,6 +53,7 @@ public class OctreeSpringFiller : MonoBehaviour
         // Update positions and bounds on start
         foreach (SpringPoint point in allSpringPoints)
         {
+            point.mass = totalMass / allSpringPoints.Count;
             Vector3 moveStep = transform.position - lastPos;
             point.UpdateBounds(moveStep);
         }
@@ -67,6 +77,52 @@ public class OctreeSpringFiller : MonoBehaviour
         if (transform.position != lastPos)
         {
             lastPos = transform.position;
+        }
+    }
+
+    void FixedUpdate()
+    {
+        float deltaTime = Time.fixedDeltaTime;
+
+        Vector3 force = gravity * totalMass;
+        Vector3 acceleration = force / totalMass;
+
+        velocity += acceleration * deltaTime;
+        if (velocity.magnitude < 0.001f)
+        {
+            velocity = Vector3.zero;
+        }
+        else
+        {
+            transform.position += velocity * deltaTime;
+        }
+
+        HandleGroundCollision();
+    }
+
+    private void HandleGroundCollision()
+    {
+        float groundContactY = groundLevel + meshBounds.size.y;
+        if (transform.position.y < groundContactY)
+        {
+            // Correct position
+            Vector3 pos = transform.position;
+            pos.y = groundContactY;
+            transform.position = pos;
+
+            // Bounce and clamp small bounces to zero
+            if (Mathf.Abs(velocity.y) < 0.1f)
+            {
+                velocity.y = 0f;
+            }
+            else
+            {
+                velocity.y = -velocity.y * groundBounce;
+            }
+
+            // Apply friction only to horizontal velocities
+            velocity.x *= groundFriction;
+            velocity.z *= groundFriction;
         }
     }
 

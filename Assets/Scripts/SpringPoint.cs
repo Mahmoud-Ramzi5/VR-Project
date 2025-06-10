@@ -38,13 +38,15 @@ public class SpringPoint : MonoBehaviour
     public float friction = 0.1f;
 
     [Header("Bounds")]
-    public Bounds NodeBounds;
-
-    public float boundsRadius = 0.5f;
+    public Bounds nodeBounds;
     public Vector3 boundsMin = new Vector3(0, 0, 0);
     public Vector3 boundsMax = new Vector3(0, 0, 0);
 
     private LineRenderer lineRenderer;
+
+    [Header("Mesh")]
+    public bool isMeshVertex = false;
+    public int triangleIndex;
 
     private void Awake()
     {
@@ -66,14 +68,14 @@ public class SpringPoint : MonoBehaviour
         lineRenderer.startWidth = 0.01f;
         lineRenderer.endWidth = 0.01f;
 
-        foreach (Connection connection in connections)
-        {
-            if (connection.point != null)
-            {
-                // Set the correct rest length based on the initial positions of the SpringPoints.
-                //connection.restLength = Vector3.Distance(transform.position, connection.point.transform.position);
-            }
-        }
+        //foreach (Connection connection in connections)
+        //{
+        //    if (connection.point != null)
+        //    {
+        //        // Set the correct rest length based on the initial positions of the SpringPoints.
+        //        connection.restLength = Vector3.Distance(transform.position, connection.point.transform.position);
+        //    }
+        //}
     }
 
     private void FixedUpdate()
@@ -176,7 +178,6 @@ public class SpringPoint : MonoBehaviour
                 if (totalInverseMass == 0) continue;
 
                 Vector3 correction = normal * (penetration / totalInverseMass);
-                //Vector3 correction = normal * (penetration / totalInverseMass)*4;
                 velocity *= (1 - friction);
 
                 if (!isFixed)
@@ -210,33 +211,6 @@ public class SpringPoint : MonoBehaviour
         }
     }
 
-
-    //public void HandleBoundaryBox()
-    //{
-    //    if (transform != null)
-    //    {
-    //        Vector3 currentPos = transform.position;
-
-    //        for (int i = 0; i < 3; i++)
-    //        {
-    //            if (currentPos[i] < boundsMin[i]) // Point is past the min boundary
-    //            {
-    //                currentPos[i] = boundsMin[i];
-    //                velocity[i] = Mathf.Max(velocity[i], 0f); // Prevent moving further into the boundary
-    //                velocity *= (1f - friction);              // Apply friction to slow down sliding
-    //            }
-    //            else if (currentPos[i] > boundsMax[i]) // Point is past the max boundary
-    //            {
-    //                currentPos[i] = boundsMax[i];
-    //                velocity[i] = Mathf.Min(velocity[i], 0f); // Prevent moving further out of the 
-    //                velocity *= (1f - friction);              // Apply friction to slow down sliding
-    //            }
-    //        }
-
-    //        transform.position = currentPos;
-    //    }
-    //}
-
     private void HandleBoundaryBox()
     {
         Vector3 pos = transform.position;
@@ -260,15 +234,15 @@ public class SpringPoint : MonoBehaviour
         transform.position = pos;
     }
 
-    public void updateBounds(Vector3 moveStep)
+    public void UpdateBounds(Vector3 moveStep)
     {
-        Vector3 NodeCenter =  NodeBounds.center;
-        Vector3 NodeSize = NodeBounds.size;
+        Vector3 NodeCenter = nodeBounds.center;
+        Vector3 NodeSize = nodeBounds.size;
 
-        NodeBounds = new Bounds(moveStep + NodeCenter, NodeSize);
+        nodeBounds = new Bounds(moveStep + NodeCenter, NodeSize);
 
-        boundsMin = NodeCenter - NodeBounds.extents;
-        boundsMax = NodeCenter + NodeBounds.extents;
+        boundsMin = NodeCenter - nodeBounds.extents;
+        boundsMax = NodeCenter + nodeBounds.extents;
     }
 
     public void DrawBoundingBox()
@@ -288,10 +262,6 @@ public class SpringPoint : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        //foreach (Connection connection in connections)
-        //{
-        //    Debug.Log($"restlength Gizmos: {connection.restLength}");
-        //}
         DrawBoundingBox();
     }
 
@@ -377,7 +347,7 @@ public class SpringPoint : MonoBehaviour
     // Speed:?????
     // Accuracy:???
     // Low-poly meshes, mobile games
-    private Vector3 FindClosestMeshPoint(Mesh mesh, Transform meshTransform)
+    public Vector3 FindClosestMeshPoint(Mesh mesh, Transform meshTransform)
     {
         // Convert position to mesh local space
         Vector3 localPos = meshTransform.InverseTransformPoint(transform.position);

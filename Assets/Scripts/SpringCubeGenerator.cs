@@ -37,7 +37,6 @@ public class SpringCubeGenerator : MonoBehaviour
                     Vector3 worldPos = transform.position + new Vector3(x, y, z) * spacing;
                     SpringPoint newPoint = Instantiate(springPointPrefab, worldPos, Quaternion.identity);
                     newPoint.name = $"Point_{x}_{y}_{z}";
-                    newPoint.boundsRadius = (spacing * 0.5f) - 0.05f;
 
                     // Fix bottom layer if enabled
                     if (fixBottomCorners && y == 0)

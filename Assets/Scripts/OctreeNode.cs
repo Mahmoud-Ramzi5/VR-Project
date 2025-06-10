@@ -4,7 +4,6 @@ using UnityEngine;
 public class OctreeNode
 {
     public Bounds worldBounds, localBounds;
-    public List<Vector3> pointsPositions = new List<Vector3>();
     public OctreeNode[] children;
     public bool isDivided;
 
@@ -66,14 +65,6 @@ public class OctreeNode
         isDivided = true;
 
         return true;
-    }
-
-    public void updatePosition(Vector3 step)
-    {
-        Vector3 worldCenter = worldBounds.center;
-        Vector3 worldSize = worldBounds.size;
-
-        worldBounds = new Bounds (step + worldCenter, worldSize);
     }
 
     public void DrawGizmos(Color leafColor, Color branchColor)

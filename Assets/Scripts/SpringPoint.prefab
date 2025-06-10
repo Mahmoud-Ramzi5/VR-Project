@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 5728223595811815812}
   - component: {fileID: 4690912075980255309}
   - component: {fileID: 4848288613280722626}
-  - component: {fileID: 789319512802541806}
   - component: {fileID: -5637772526656094594}
   m_Layer: 0
   m_Name: SpringPoint
@@ -88,18 +87,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &789319512802541806
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7349107700272415433}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 15bf715f004763f41b6362b2107d8570, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &-5637772526656094594
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -120,7 +107,13 @@ MonoBehaviour:
   applyGravity: 1
   bounciness: 0.005
   friction: 2
+  nodeBounds:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
   boundsMin: {x: 0, y: 0, z: 0}
   boundsMax: {x: 0, y: 0, z: 0}
+  isMeshVertex: 0
+  triangleIndex: 0
   constraintStiffness: 50
   constraintDamping: 5
+  surfaceOffset: 0.05

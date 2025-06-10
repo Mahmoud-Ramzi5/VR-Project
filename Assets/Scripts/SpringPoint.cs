@@ -48,6 +48,7 @@ public class SpringPoint : MonoBehaviour
     public bool isMeshVertex = false;
     public int triangleIndex;
 
+    [HideInInspector] public Vector3 initialPosition;
     private void Awake()
     {
         // Initialize connections if null
@@ -59,6 +60,7 @@ public class SpringPoint : MonoBehaviour
 
     private void Start()
     {
+        initialPosition = transform.position;
         allParticles.Add(this);
 
         lineRenderer = gameObject.AddComponent<LineRenderer>();

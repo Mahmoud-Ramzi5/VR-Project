@@ -22,7 +22,7 @@ public class OctreeSpringFiller : MonoBehaviour
     private int[] meshTriangles;
 
     private List<Vector3> allPointPositions = new List<Vector3>();
-    private List<SpringPoint> allSpringPoints = new List<SpringPoint>();
+    public List<SpringPoint> allSpringPoints = new List<SpringPoint>();
 
     private Vector3 lastPos;
 

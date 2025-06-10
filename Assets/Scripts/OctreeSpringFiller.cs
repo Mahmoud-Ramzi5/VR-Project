@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using static UnityEditor.Searcher.SearcherWindow.Alignment;
+using UnityEditor.Experimental.GraphView;
 
 
 public class OctreeSpringFiller : MonoBehaviour
@@ -15,6 +16,7 @@ public class OctreeSpringFiller : MonoBehaviour
     [Header("Spring Settings")]
     public float springConstant = 10f;
     public float damperConstant = 0.5f;
+    public float maxRestLength = 2f;
     public float connectionRadius = 2f;
 
     private Mesh targetMesh;
@@ -26,9 +28,14 @@ public class OctreeSpringFiller : MonoBehaviour
     private List<Vector3> allPointPositions = new List<Vector3>();
     private List<SpringPoint> allSpringPoints = new List<SpringPoint>();
 
+    private Vector3 lastPos;
 
     void Start()
     {
+        // save transform
+        lastPos = transform.position;
+
+        // get mesh
         targetMesh = GetComponent<MeshFilter>().mesh;
         targetMesh.RecalculateBounds();
 
@@ -47,6 +54,31 @@ public class OctreeSpringFiller : MonoBehaviour
             {
                 point.ConstrainToMesh(targetMesh, transform);
             }
+        }
+    }
+
+    private void LateUpdate()
+    {
+        foreach (SpringPoint point in allSpringPoints)
+        {
+            if (transform.position != lastPos)
+            {
+                Vector3 moveStep = transform.position - lastPos;
+                point.updateBounds(moveStep);
+            }
+        }
+
+        foreach (var node in GetAllLeafNodes(rootNode))
+        {
+            if (transform.position != lastPos)
+            {
+                Vector3 move = transform.position - lastPos;
+                node.updatePosition(move);
+            }
+        }
+        if (transform.position != lastPos)
+        {
+            lastPos = transform.position;
         }
     }
 
@@ -269,13 +301,24 @@ public class OctreeSpringFiller : MonoBehaviour
                     point = fallbackGO.AddComponent<SpringPoint>();
                 }
 
-                point.radius = particleSpacing * 0.5f;
+                point.radius = 0.1f;
+                point.boundsRadius = (particleSpacing * 0.5f) - 1f;
                 point.connections = new List<Connection>();
                 point.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
-                point.isFixed = IsCornerPoint(transform.InverseTransformPoint(worldPos));
 
+                point.NodeBounds = node.worldBounds;
+
+                //point.boundsMin = worldPos - node.worldBounds.extents;
+                //point.boundsMax = worldPos + node.worldBounds.extents;
+
+                //point.isFixed = IsCornerPoint(transform.InverseTransformPoint(worldPos));
+
+                //if (worldPos.y == 0)
+                //{
+                //    point.isFixed = true;
+                //}
                 // for debuging
-                point.isFixed = true;
+                //point.isFixed = true;
 
                 allSpringPoints.Add(point);
             }

@@ -38,6 +38,9 @@ public class SpringPoint : MonoBehaviour
     public float friction = 0.1f;
 
     [Header("Bounds")]
+    public Bounds NodeBounds;
+
+    public float boundsRadius = 0.5f;
     public Vector3 boundsMin = new Vector3(0, 0, 0);
     public Vector3 boundsMax = new Vector3(0, 0, 0);
 
@@ -95,10 +98,7 @@ public class SpringPoint : MonoBehaviour
         HandleBoundaryBox();
     }
 
-    private void LateUpdate()
-    {
-        UpdateDynamicBounds();
-    }
+
 
     private void Update()
     {
@@ -210,65 +210,66 @@ public class SpringPoint : MonoBehaviour
         }
     }
 
-    private void UpdateDynamicBounds()
-    {
-        if (transform != null)
-        {
-            Vector3 currentPos = transform.position;
-            boundsMin = currentPos + new Vector3(-radius, -radius, -radius);
-            boundsMax = currentPos + new Vector3(radius, radius, radius);
-        }
-    }
 
-    public void HandleBoundaryBox()
-    {
-        if (transform != null)
-        {
-            Vector3 currentPos = transform.position;
-
-            for (int i = 0; i < 3; i++)
-            {
-                if (currentPos[i] < boundsMin[i]) // Point is past the min boundary
-                {
-                    currentPos[i] = boundsMin[i];
-                    velocity[i] = Mathf.Max(velocity[i], 0f); // Prevent moving further into the boundary
-                    velocity *= (1f - friction);              // Apply friction to slow down sliding
-                }
-                else if (currentPos[i] > boundsMax[i]) // Point is past the max boundary
-                {
-                    currentPos[i] = boundsMax[i];
-                    velocity[i] = Mathf.Min(velocity[i], 0f); // Prevent moving further out of the 
-                    velocity *= (1f - friction);              // Apply friction to slow down sliding
-                }
-            }
-
-            transform.position = currentPos;
-        }
-    }
-
-    //private void HandleBoundaryBox()
+    //public void HandleBoundaryBox()
     //{
-    //    Vector3 pos = transform.position;
-
-    //    for (int i = 0; i < 3; i++)
+    //    if (transform != null)
     //    {
-    //        if (pos[i] - radius < boundsMin[i])
-    //        {
-    //            pos[i] = boundsMin[i] + radius;
-    //            velocity[i] *= -bounciness;
-    //            velocity *= (1f - friction);
-    //        }
-    //        else if (pos[i] + radius > boundsMax[i])
-    //        {
-    //            pos[i] = boundsMax[i] - radius;
-    //            velocity[i] *= -bounciness;
-    //            velocity *= (1f - friction);
-    //        }
-    //    }
+    //        Vector3 currentPos = transform.position;
 
-    //    transform.position = pos;
+    //        for (int i = 0; i < 3; i++)
+    //        {
+    //            if (currentPos[i] < boundsMin[i]) // Point is past the min boundary
+    //            {
+    //                currentPos[i] = boundsMin[i];
+    //                velocity[i] = Mathf.Max(velocity[i], 0f); // Prevent moving further into the boundary
+    //                velocity *= (1f - friction);              // Apply friction to slow down sliding
+    //            }
+    //            else if (currentPos[i] > boundsMax[i]) // Point is past the max boundary
+    //            {
+    //                currentPos[i] = boundsMax[i];
+    //                velocity[i] = Mathf.Min(velocity[i], 0f); // Prevent moving further out of the 
+    //                velocity *= (1f - friction);              // Apply friction to slow down sliding
+    //            }
+    //        }
+
+    //        transform.position = currentPos;
+    //    }
     //}
 
+    private void HandleBoundaryBox()
+    {
+        Vector3 pos = transform.position;
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (pos[i] - radius < boundsMin[i])
+            {
+                pos[i] = boundsMin[i] + radius;
+                velocity[i] *= -bounciness;
+                velocity *= (1f - friction);
+            }
+            else if (pos[i] + radius > boundsMax[i])
+            {
+                pos[i] = boundsMax[i] - radius;
+                velocity[i] *= -bounciness;
+                velocity *= (1f - friction);
+            }
+        }
+
+        transform.position = pos;
+    }
+
+    public void updateBounds(Vector3 moveStep)
+    {
+        Vector3 NodeCenter =  NodeBounds.center;
+        Vector3 NodeSize = NodeBounds.size;
+
+        NodeBounds = new Bounds(moveStep + NodeCenter, NodeSize);
+
+        boundsMin = NodeCenter - NodeBounds.extents;
+        boundsMax = NodeCenter + NodeBounds.extents;
+    }
 
     public void DrawBoundingBox()
     {
@@ -287,6 +288,10 @@ public class SpringPoint : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        //foreach (Connection connection in connections)
+        //{
+        //    Debug.Log($"restlength Gizmos: {connection.restLength}");
+        //}
         DrawBoundingBox();
     }
 

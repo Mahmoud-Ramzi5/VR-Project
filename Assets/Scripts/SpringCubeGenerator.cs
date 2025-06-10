@@ -18,14 +18,6 @@ public class SpringCubeGenerator : MonoBehaviour
         GenerateCube();
     }
 
-    void FixedUpdate()
-    {
-        foreach (SpringPoint point in points)
-        {
-            point.HandleBoundaryBox();
-        }
-    }
-
     void GenerateCube()
     {
         // Clear any existing points
@@ -45,6 +37,7 @@ public class SpringCubeGenerator : MonoBehaviour
                     Vector3 worldPos = transform.position + new Vector3(x, y, z) * spacing;
                     SpringPoint newPoint = Instantiate(springPointPrefab, worldPos, Quaternion.identity);
                     newPoint.name = $"Point_{x}_{y}_{z}";
+                    newPoint.boundsRadius = (spacing * 0.5f) - 0.05f;
 
                     // Fix bottom layer if enabled
                     if (fixBottomCorners && y == 0)
@@ -102,26 +95,5 @@ public class SpringCubeGenerator : MonoBehaviour
 
         Connection c2 = new Connection(a, restLength, springConstant, damperConstant);
         b.connections.Add(c2);
-    }
-
-    void OnDrawGizmos()
-    {
-        // Draw the connection radius for visualization
-        Gizmos.color = Color.cyan;
-        Gizmos.DrawWireCube(
-            transform.position + new Vector3(gridSize - 1, gridSize - 1, gridSize - 1) * spacing * 0.5f,
-            new Vector3(gridSize, gridSize, gridSize) * spacing
-        );
-
-        // Draw connection radius spheres at each point
-        if (Application.isPlaying)
-        {
-            Gizmos.color = new Color(1, 0, 0, 0.1f);
-            foreach (var point in points)
-            {
-                if (point != null)
-                    Gizmos.DrawSphere(point.transform.position, connectionRadius * spacing);
-            }
-        }
     }
 }

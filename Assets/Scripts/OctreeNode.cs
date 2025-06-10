@@ -68,6 +68,14 @@ public class OctreeNode
         return true;
     }
 
+    public void updatePosition(Vector3 step)
+    {
+        Vector3 worldCenter = worldBounds.center;
+        Vector3 worldSize = worldBounds.size;
+
+        worldBounds = new Bounds (step + worldCenter, worldSize);
+    }
+
     public void DrawGizmos(Color leafColor, Color branchColor)
     {
         Gizmos.color = isDivided ? branchColor : leafColor;

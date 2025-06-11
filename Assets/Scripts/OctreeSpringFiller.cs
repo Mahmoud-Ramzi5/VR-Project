@@ -21,7 +21,7 @@ public class OctreeSpringFiller : MonoBehaviour
     private Vector3[] meshVertices;
     private int[] meshTriangles;
 
-    public float totalMass = 1f;
+    public float totalMass = 100f;
     public Vector3 velocity = Vector3.zero;
     public Vector3 gravity = new Vector3(0, -9.81f, 0);
 
@@ -131,7 +131,8 @@ public class OctreeSpringFiller : MonoBehaviour
         ClearExistingPoints();
 
         // Recalculate accurate world-space bounds
-        if (meshVertices.Length <= 0) {
+        if (meshVertices.Length <= 0)
+        {
             Debug.Log("Vertices Error");
             return;
         }

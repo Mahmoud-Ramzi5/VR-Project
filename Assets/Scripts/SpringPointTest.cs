@@ -44,6 +44,7 @@ public class ConnectionTest
         // --- NaN/Zero Distance Check --- 
         if (point1 == null || point2 == null || point1.transform.position == point2.transform.position)
             return;
+
         Vector3 direction = point2.transform.position - point1.transform.position;
         float dist = direction.magnitude;
 
@@ -55,8 +56,8 @@ public class ConnectionTest
         Vector3 springForce = springConstant * stretch * direction.normalized; // Normalized direction
 
         // Damping
-        Vector3 relativeVelocity = point2.velocity - point1.velocity;
         // Apply damping to prevent sliding at higher speeds
+        Vector3 relativeVelocity = point2.velocity - point1.velocity;
         float velocityAlongSpring = Vector3.Dot(relativeVelocity, direction.normalized);
         Vector3 dampingForce = damperConstant * velocityAlongSpring * direction.normalized;
 
@@ -98,46 +99,50 @@ public class SpringPointTest : MonoBehaviour
         initialPosition = transform.position;
     }
 
-    private void FixedUpdate()
+    public void UpdatePoint(float deltaTime)
     {
         if (isFixed) return;
 
         // --- NaN/Origin Checks ---
-        if (float.IsNaN(transform.position.x))
+        if (float.IsNaN(transform.position.x) || float.IsNaN(transform.position.y) || float.IsNaN(transform.position.z))
         {
-            Debug.LogWarning($"NaN detected in position! Resetting point {name}.");
-            transform.position = initialPosition;
+            Debug.LogWarning($"NaN in {name}. Resetting.");
+            //transform.position = initialPosition;
             velocity = Vector3.zero;
+            force = Vector3.zero;
             return;
         }
 
         // Prevent division by zero
-        if (mass <= 0) mass = 0.001f;
-
-        float deltaTime = Time.fixedDeltaTime;
+        if (mass <= 0) mass = 1f;
 
         // --- Force/Velocity Validation ---
-        if (!float.IsNaN(force.x))
+        if (!float.IsNaN(force.x)  && !float.IsNaN(force.y) && !float.IsNaN(force.z))
         {
             Vector3 acceleration = force / mass;
             velocity += acceleration * deltaTime;
 
             // Clamp velocity to prevent explosions
-            if (velocity.magnitude > 100f)
+            //if (velocity.magnitude > 100f)
+            //{
+            //    velocity = velocity.normalized * 100f;
+            //}
+            // More conservative velocity clamping
+            if (velocity.sqrMagnitude > 2500f) // 50 units/s squared
             {
-                velocity = velocity.normalized * 100f;
+                velocity = velocity.normalized * 50f;
             }
         }
 
         // --- Position Update ---
-        Vector3 newPosition = transform.position + velocity * deltaTime;
-        if (!float.IsNaN(newPosition.x) && newPosition.magnitude < 100000f)
+        Vector3 newPosition = transform.position + (velocity * deltaTime);
+        if (!float.IsNaN(newPosition.x) && !float.IsNaN(newPosition.y) && !float.IsNaN(newPosition.z) && newPosition.magnitude < 100000f)
         {
             transform.position = newPosition;
         }
         else
         {
-            transform.position = initialPosition;
+            //transform.position = initialPosition;
             velocity = Vector3.zero;
         }
 

@@ -41,10 +41,13 @@ public class ConnectionTest
 
     public void CalculateAndApplyForces()
     {
+        // --- NaN/Zero Distance Check ---
+        if (point1 == null || point2 == null || point1.transform.position == point2.transform.position)
+            return;
         Vector3 direction = point2.transform.position - point1.transform.position;
         float dist = direction.magnitude;
 
-        if (dist == 0) return;
+        if (dist == 0 || float.IsNaN(dist)) return;
 
         // Hooke's Law
         // Calculate spring force using Hooke's Law
@@ -99,23 +102,46 @@ public class SpringPointTest : MonoBehaviour
     {
         if (isFixed) return;
 
-        float deltaTime = Time.fixedDeltaTime;
-        //float fixedDt = Mathf.Min(Time.deltaTime, 0.02f); // 50Hz max
-
-        // Move point based on current force and velocity
-        Vector3 acceleration = force / mass;
-        velocity += acceleration * deltaTime;
-        transform.position += velocity * deltaTime;
-
-        // Reset force for next frame
-        force = Vector3.zero;
-
-        // Reset velocity if small
-        if (velocity.magnitude < 0.001f)
+        // --- NaN/Origin Checks ---
+        if (float.IsNaN(transform.position.x))
+        {
+            Debug.LogWarning($"NaN detected in position! Resetting point {name}.");
+            transform.position = initialPosition;
             velocity = Vector3.zero;
+            return;
+        }
 
-        //HandleCollisions();
-        //HandleBoundaryBox();
+        // Prevent division by zero
+        if (mass <= 0) mass = 0.001f;
+
+        float deltaTime = Time.fixedDeltaTime;
+
+        // --- Force/Velocity Validation ---
+        if (!float.IsNaN(force.x))
+        {
+            Vector3 acceleration = force / mass;
+            velocity += acceleration * deltaTime;
+
+            // Clamp velocity to prevent explosions
+            if (velocity.magnitude > 100f)
+            {
+                velocity = velocity.normalized * 100f;
+            }
+        }
+
+        // --- Position Update ---
+        Vector3 newPosition = transform.position + velocity * deltaTime;
+        if (!float.IsNaN(newPosition.x) && newPosition.magnitude < 100000f)
+        {
+            transform.position = newPosition;
+        }
+        else
+        {
+            transform.position = initialPosition;
+            velocity = Vector3.zero;
+        }
+
+        force = Vector3.zero;
     }
 
     private void HandleBoundaryBox()
@@ -221,6 +247,13 @@ public class SpringPointTest : MonoBehaviour
 
         // 1. Find closest surface point
         Vector3 closestSurfacePoint = FindClosestMeshPoint(mesh, meshTransform);
+
+        // --- NaN Check ---
+        if (float.IsNaN(closestSurfacePoint.x))
+        {
+            Debug.LogWarning("Invalid mesh point detected! Using fallback.");
+            closestSurfacePoint = initialPosition;
+        }
 
         // 2. Calculate surface direction and distance
         Vector3 toSurface = closestSurfacePoint - transform.position;

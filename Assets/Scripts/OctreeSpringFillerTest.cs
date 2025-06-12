@@ -112,10 +112,10 @@ public class OctreeSpringFillerTest : MonoBehaviour
         }
 
         // Update points
-        //foreach (var point in allSpringPointsTest)
-        //{
-        //    point.CalculateForce(Time.fixedDeltaTime);
-        //}
+        foreach (var point in allSpringPointsTest)
+        {
+            point.UpdatePoint(Time.fixedDeltaTime);
+        }
 
     }
 

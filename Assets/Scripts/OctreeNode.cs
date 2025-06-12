@@ -17,7 +17,7 @@ public class OctreeNode
     public bool Divide(float minSize)
     {
         // If the node size is already small enough, do not subdivide further
-        if (worldBounds.size.x <= minSize || worldBounds.size.y <= minSize || worldBounds.size.z <= minSize)
+        if (worldBounds.size.x <= minSize && worldBounds.size.y <= minSize && worldBounds.size.z <= minSize)
             return false;
 
         // Initialize the array of 8 children nodes

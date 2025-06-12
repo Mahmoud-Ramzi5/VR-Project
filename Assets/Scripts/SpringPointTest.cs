@@ -41,7 +41,7 @@ public class ConnectionTest
 
     public void CalculateAndApplyForces()
     {
-        // --- NaN/Zero Distance Check ---
+        // --- NaN/Zero Distance Check --- 
         if (point1 == null || point2 == null || point1.transform.position == point2.transform.position)
             return;
         Vector3 direction = point2.transform.position - point1.transform.position;

@@ -29,9 +29,9 @@ public class SpringJobManager : MonoBehaviour
     private JobHandle collisionJobHandle;
 
     // Reference to the parent system
-    private OctreeSpringFillerTest parentSystem;
+    private OctreeSpringFiller parentSystem;
 
-    public void InitializeArrays(OctreeSpringFillerTest parent, int pointCount, int connectionCount)
+    public void InitializeArrays(OctreeSpringFiller parent, int pointCount, int connectionCount)
     {
         parentSystem = parent;
 
@@ -42,9 +42,9 @@ public class SpringJobManager : MonoBehaviour
         restLengths = new NativeArray<float>(connectionCount, Allocator.Persistent);
 
         masses = new NativeArray<float>(pointCount, Allocator.Persistent);
-        for (int i = 0; i < parent.allSpringPointsTest.Count; i++)
+        for (int i = 0; i < parent.allSpringPoints.Count; i++)
         {
-            masses[i] = parent.allSpringPointsTest[i].mass;
+            masses[i] = parent.allSpringPoints[i].mass;
         }
 
         // Initialize both force buffers
@@ -173,10 +173,10 @@ public class SpringJobManager : MonoBehaviour
         //forceMap.Clear();
 
         // Update positions and velocities from parent system
-        for (int i = 0; i < parentSystem.allSpringPointsTest.Count; i++)
+        for (int i = 0; i < parentSystem.allSpringPoints.Count; i++)
         {
-            positions[i] = parentSystem.allSpringPointsTest[i].position;
-            velocities[i] = parentSystem.allSpringPointsTest[i].velocity;
+            positions[i] = parentSystem.allSpringPoints[i].position;
+            velocities[i] = parentSystem.allSpringPoints[i].velocity;
         }
 
         var calculateJob = new CalculateForcesJob
@@ -201,7 +201,7 @@ public class SpringJobManager : MonoBehaviour
 
         // Schedule with dependency chain
         springJobHandle = calculateJob.Schedule(connections.Length, 64, gravityJobHandle);
-        springJobHandle = accumulateJob.Schedule(parentSystem.allSpringPointsTest.Count, 64, springJobHandle);
+        springJobHandle = accumulateJob.Schedule(parentSystem.allSpringPoints.Count, 64, springJobHandle);
 
         // Switch buffers for next frame
         usingBufferA = !usingBufferA;
@@ -216,27 +216,27 @@ public class SpringJobManager : MonoBehaviour
         var completedForceBuffer = usingBufferA ? forcesBufferB : forcesBufferA;
 
         // Apply forces to SpringPointTest objects
-        for (int i = 0; i < parentSystem.allSpringPointsTest.Count; i++)
+        for (int i = 0; i < parentSystem.allSpringPoints.Count; i++)
         {
             // Convert float3 to Vector3
             var forceX = completedForceBuffer[i].x;
             var forceY = completedForceBuffer[i].y;
             var forceZ = completedForceBuffer[i].z;
             Vector3 forceVector = new Vector3(forceX, forceY, forceZ);
-            parentSystem.allSpringPointsTest[i].force += forceVector;
+            parentSystem.allSpringPoints[i].force += forceVector;
         }
 
         // Clear forces for next frame
         forceMap.Clear();
     }
 
-    public void UpdateConnectionData(List<ConnectionTest> connections)
+    public void UpdateConnectionData(List<SpringConnection> connections)
     {
         // Update connection indices and rest lengths
         for (int i = 0; i < connections.Count; i++)
         {
-            int index1 = parentSystem.allSpringPointsTest.IndexOf(connections[i].point1);
-            int index2 = parentSystem.allSpringPointsTest.IndexOf(connections[i].point2);
+            int index1 = parentSystem.allSpringPoints.IndexOf(connections[i].point1);
+            int index2 = parentSystem.allSpringPoints.IndexOf(connections[i].point2);
             this.connections[i] = new int2(index1, index2);
             restLengths[i] = connections[i].restLength;
         }

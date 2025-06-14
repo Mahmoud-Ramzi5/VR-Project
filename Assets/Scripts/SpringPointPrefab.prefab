@@ -11,9 +11,8 @@ GameObject:
   - component: {fileID: 5728223595811815812}
   - component: {fileID: 4690912075980255309}
   - component: {fileID: 4848288613280722626}
-  - component: {fileID: -1861832841008415899}
   m_Layer: 0
-  m_Name: SpringPointTest
+  m_Name: SpringPointPrefab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -87,30 +86,3 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &-1861832841008415899
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7349107700272415433}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 47c9e9ef63029ea4c92729e3e439961f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mass: 1
-  radius: 0.5
-  force: {x: 0, y: 0, z: 0}
-  velocity: {x: 0, y: 0, z: 0}
-  isFixed: 0
-  applyGravity: 1
-  bounciness: 0.2
-  friction: 0.1
-  nodeBounds:
-    m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 0, y: 0, z: 0}
-  boundsMin: {x: 0, y: 0, z: 0}
-  boundsMax: {x: 0, y: 0, z: 0}
-  isMeshVertex: 0
-  triangleIndex: 0

@@ -1,9 +1,10 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
+using static UnityEditor.PlayerSettings;
 
 public class MeshDeformer : MonoBehaviour
 {
-    public OctreeSpringFillerTest springFiller;
+    public OctreeSpringFiller springFiller;
     public MeshFilter meshFilter;
     public int maxSubdivisionLevel = 3;
     public float influenceRadius = 1.0f;
@@ -28,7 +29,7 @@ public class MeshDeformer : MonoBehaviour
     {
         if (!meshFilter) meshFilter = GetComponent<MeshFilter>();
         originalMesh = meshFilter.mesh;
-        springFiller = GetComponent<OctreeSpringFillerTest>();
+        springFiller = GetComponent<OctreeSpringFiller>();
 
         InitializeDeformationMesh();
         BuildInfluenceMapping();
@@ -196,7 +197,7 @@ public class MeshDeformer : MonoBehaviour
             vertexInfluences[i] = new List<WeightedInfluence>();
             Vector3 vertexWorld = transform.TransformPoint(baseVertices[i]);
 
-            foreach (SpringPointTest sp in springFiller.allSpringPointsTest)
+            foreach (SpringPoint sp in springFiller.allSpringPoints)
             {
                 float distance = Vector3.Distance(vertexWorld, sp.position);
                 if (distance < influenceRadius)
@@ -257,6 +258,12 @@ public class MeshDeformer : MonoBehaviour
         newVerts.Add(mid);
         int newIndex = newVerts.Count - 1;
         midpoints.Add(edge, newIndex);
+
+        // Create spring point at the new vertex position (in world space)
+        Vector3 worldPos = transform.TransformPoint(mid);
+        CreateSpringPoint(worldPos);
+        springFiller.CreateSpringConnections();
+
         return newIndex;
     }
 
@@ -277,7 +284,18 @@ public class MeshDeformer : MonoBehaviour
 
     private struct WeightedInfluence
     {
-        public SpringPointTest springPoint;
+        public SpringPoint springPoint;
         public float weight;
+    }
+    void CreateSpringPoint(Vector3 worldPos)
+    {
+        SpringPoint point = new SpringPoint(worldPos);
+
+        point.mass = 1.0f;
+        point.radius = 0.1f;
+        GameObject obj = Instantiate(springFiller.springPointPrefab, worldPos, Quaternion.identity);
+        springFiller.objects.Add(obj);
+        obj.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
+        Debug.Log(point);
     }
 }

@@ -506,7 +506,7 @@ public class OctreeSpringFiller : MonoBehaviour
         }
     }
 
-    void CreateSpringConnections()
+    public void CreateSpringConnections()
     {
         // Clear existing connections
         allSpringConnections.Clear();

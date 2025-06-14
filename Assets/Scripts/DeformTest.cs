@@ -4,12 +4,12 @@ using UnityEngine;
 public class DeformTest : MonoBehaviour
 {
     [SerializeField] private GameObject cube;
-    private List<SpringPointTest> allSpringPointsTest;
+    private List<SpringPoint> allSpringPoints;
     [SerializeField] private MeshDeformer deformer;
     private List<Vector3> pointPositions;
     void Start()
     {
-       allSpringPointsTest=  cube.GetComponent<OctreeSpringFillerTest>().allSpringPointsTest;
+       allSpringPoints=  cube.GetComponent<OctreeSpringFiller>().allSpringPoints;
         pointPositions= new List<Vector3>();
 
     }
@@ -17,8 +17,8 @@ public class DeformTest : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
-        foreach (var point in allSpringPointsTest) {
-            pointPositions.Add(point.transform.position);
+        foreach (var point in allSpringPoints) {
+            pointPositions.Add(point.position);
         }
         deformer.HandleCollisionPoints(pointPositions);
     }

@@ -35,7 +35,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
     public float groundLevel = 0f;       // Y-position of the ground plane
     public float groundBounce = 0.5f;   // Bounce coefficient (0 = no bounce, 1 = full bounce)
     public float groundFriction = 0.8f; // Friction (0 = full stop, 1 = no friction)
-
+    public bool applyGroundCollision = true;
 
     // Lists
     private List<Vector3> allPointPositions = new List<Vector3>();
@@ -117,10 +117,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
         // 2. Schedule spring jobs
         jobManager.ScheduleSpringJobs(springConstant, damperConstant);
 
-        // 3. Schedule collision jobs
-        //jobManager.ScheduleCollisionJobs(groundLevel, groundBounce, groundFriction);
-
-        // 4. Complete all jobs and apply results
+        // 3. Complete all jobs and apply results
         jobManager.CompleteAllJobsAndApply();
 
         //// Update springs
@@ -130,15 +127,15 @@ public class OctreeSpringFillerTest : MonoBehaviour
         //    connection.CalculateAndApplyForces();
         //}
 
-        // 5. Update mesh (consider throttling this)
-        if (Time.frameCount % 3 == 0) // Update mesh every 3 physics frames
-        {
+        // 4. Update mesh (consider throttling this)
+        //if (Time.frameCount % 3 == 0) // Update mesh every 3 physics frames
+        //{
             // Update mesh to follow points
             UpdateMeshFromPoints();
-        }
+        //}
 
-        // Handle collisions
-        if (true)
+        // 5. Handle collisions
+        if (applyGroundCollision)
         {
             foreach (var point in allSpringPointsTest)
             {
@@ -146,7 +143,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
             }
         }
 
-        // Update points (if needed)
+        // Update points
         foreach (var point in allSpringPointsTest)
         {
             point.UpdatePoint(Time.fixedDeltaTime);

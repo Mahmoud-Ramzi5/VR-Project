@@ -143,36 +143,6 @@ public class SpringJobManager : MonoBehaviour
         }
     }
 
-    [BurstCompile]
-    public struct GroundCollisionJob : IJobParallelFor
-    {
-        public NativeArray<float3> velocities;
-        public NativeArray<float3> positions;
-
-        [ReadOnly] public float groundLevel;
-        [ReadOnly] public float groundBounce;
-        [ReadOnly] public float groundFriction;
-
-        public void Execute(int index)
-        {
-            float3 position = positions[index];
-            if (position.y < groundLevel)
-            {
-                position.y = groundLevel;
-                positions[index] = position;
-
-                float3 velocity = velocities[index];
-                if (velocity.y < 0)
-                {
-                    velocity.x *= groundFriction;
-                    velocity.y *= -groundBounce;
-                    velocity.z *= groundFriction;
-                    velocities[index] = velocity;
-                }
-            }
-        }
-    }
-
     public void ScheduleGravityJobs(float3 gravity, bool applyGravity)
     {
         // Clear the force map
@@ -237,27 +207,10 @@ public class SpringJobManager : MonoBehaviour
         usingBufferA = !usingBufferA;
     }
 
-    public void ScheduleCollisionJobs(float groundLevel, float groundBounce, float groundFriction)
-    {
-        var collisionJob = new GroundCollisionJob
-        {
-            velocities = velocities,
-            positions = positions,
-
-            groundLevel = groundLevel,
-            groundBounce = groundBounce,
-            groundFriction = groundFriction,
-        };
-
-        collisionJobHandle = collisionJob.Schedule(positions.Length, 64, springJobHandle);
-    }
-
     public void CompleteAllJobsAndApply()
     {
         // Complete All jobs
         JobHandle.CombineDependencies(gravityJobHandle, springJobHandle).Complete();
-
-        //JobHandle.CombineDependencies(springJobHandle, collisionJobHandle).Complete();
 
         // Get the buffer we just finished writing to
         var completedForceBuffer = usingBufferA ? forcesBufferB : forcesBufferA;

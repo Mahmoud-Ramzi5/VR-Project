@@ -1,17 +1,12 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-
-[System.Serializable]
 public class ConnectionTest
 {
     public SpringPointTest point1, point2;
     public float springConstant = 100f;
     public float damperConstant = 0.5f;
     public float restLength = 1f;
-
-    // For Debug
-    private LineRenderer lineRenderer;
 
     public ConnectionTest(SpringPointTest point1, SpringPointTest point2, float restLength, float springConstant, float damperConstant)
     {
@@ -22,30 +17,15 @@ public class ConnectionTest
         this.damperConstant = damperConstant;
     }
 
-    public void InitLineRenderer(Transform meshTransform)
-    {
-        var lineObj = new GameObject("Connection");
-        lineObj.transform.SetParent(meshTransform);
-        lineRenderer = lineObj.AddComponent<LineRenderer>();
-        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-        lineRenderer.startWidth = 0.05f;
-        lineRenderer.endWidth = 0.05f;
-    }
-
-    public void UpdateLinePos()
-    {
-        lineRenderer.SetPosition(0, point1.transform.position);
-        lineRenderer.SetPosition(1, point2.transform.position);
-    }
-
-
+    // this no longer being called 
+    // the logic has been moved to Jobs
     public void CalculateAndApplyForces()
     {
         // --- NaN/Zero Distance Check --- 
-        if (point1 == null || point2 == null || point1.transform.position == point2.transform.position)
+        if (point1 == null || point2 == null || point1.position == point2.position)
             return;
 
-        Vector3 direction = point2.transform.position - point1.transform.position;
+        Vector3 direction = point2.position - point1.position;
         float dist = direction.magnitude;
 
         if (dist == 0 || float.IsNaN(dist)) return;
@@ -70,13 +50,14 @@ public class ConnectionTest
     }
 }
 
-public class SpringPointTest : MonoBehaviour
+public class SpringPointTest
 {
     public float mass = 1f;
     public float radius = 0.5f;
 
     public Vector3 force;
     public Vector3 velocity;
+    public Vector3 position;
     public bool isFixed = false;
 
     [Header("Collision")]
@@ -94,21 +75,25 @@ public class SpringPointTest : MonoBehaviour
 
     [HideInInspector] public Vector3 initialPosition;
 
-    private void Start()
+    public SpringPointTest(Vector3 position)
     {
-        transform.SetParent(null); // Make independent
-        initialPosition = transform.position;
+        this.position = position;
     }
+
+    //private void Start()
+    //{
+    //    //transform.SetParent(null); // Make independent
+    //    initialPosition = position;
+    //}
 
     public void UpdatePoint(float deltaTime)
     {
         if (isFixed) return;
 
         // --- NaN/Origin Checks ---
-        if (float.IsNaN(transform.position.x) || float.IsNaN(transform.position.y) || float.IsNaN(transform.position.z))
+        if (float.IsNaN(position.x) || float.IsNaN(position.y) || float.IsNaN(position.z))
         {
-            Debug.LogWarning($"NaN in {name}. Resetting.");
-            //transform.position = initialPosition;
+            //Debug.LogWarning($"NaN in {name}. Resetting.");
             velocity = Vector3.zero;
             force = Vector3.zero;
             return;
@@ -136,14 +121,13 @@ public class SpringPointTest : MonoBehaviour
         }
 
         // --- Position Update ---
-        Vector3 newPosition = transform.position + (velocity * deltaTime);
+        Vector3 newPosition = position + (velocity * deltaTime);
         if (!float.IsNaN(newPosition.x) && !float.IsNaN(newPosition.y) && !float.IsNaN(newPosition.z) && newPosition.magnitude < 100000f)
         {
-            transform.position = newPosition;
+            position = newPosition;
         }
         else
         {
-            //transform.position = initialPosition;
             velocity = Vector3.zero;
         }
 
@@ -152,7 +136,7 @@ public class SpringPointTest : MonoBehaviour
 
     private void HandleBoundaryBox()
     {
-        Vector3 pos = transform.position;
+        Vector3 pos = position;
 
         for (int i = 0; i < 3; i++)
         {
@@ -170,7 +154,7 @@ public class SpringPointTest : MonoBehaviour
             }
         }
 
-        transform.position = pos;
+        position = pos;
     }
 
     public void UpdateBounds(Vector3 moveStep)
@@ -180,7 +164,6 @@ public class SpringPointTest : MonoBehaviour
 
         boundsMin = newCenter - nodeBounds.extents;
         boundsMax = newCenter + nodeBounds.extents;
-        //Debug.Log($"boundsMin {boundsMin}, boundsMax {boundsMax}");
     }
 
     public void DrawBoundingBox()
@@ -262,7 +245,7 @@ public class SpringPointTest : MonoBehaviour
         }
 
         // 2. Calculate surface direction and distance
-        Vector3 toSurface = closestSurfacePoint - transform.position;
+        Vector3 toSurface = closestSurfacePoint - position;
         float distance = toSurface.magnitude;
         if (distance < 0.0001f) return;  // Avoid division by zero
 
@@ -292,7 +275,7 @@ public class SpringPointTest : MonoBehaviour
     public Vector3 FindClosestMeshPoint(Mesh mesh, Transform meshTransform)
     {
         // Convert position to mesh local space
-        Vector3 localPos = meshTransform.InverseTransformPoint(transform.position);
+        Vector3 localPos = meshTransform.InverseTransformPoint(position);
 
         // Find closest vertex (fast approximation)
         Vector3 closestVertex = mesh.vertices[0];

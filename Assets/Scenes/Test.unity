@@ -150,7 +150,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc7e8612c85b34a4793f78fc94b931b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  springPointPrefab: {fileID: -1861832841008415899, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
   visualizeConnections: 1
   minNodeSize: 0.5
   PointSpacing: 0.5
@@ -158,14 +157,13 @@ MonoBehaviour:
   springConstant: 100
   damperConstant: 0.6
   connectionRadius: 2
-  maxRestLength: 2
+  maxRestLength: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
   groundBounce: 0.5
   groundFriction: 0.8
-  allConnectionsTest: []
-  allSpringPointsTest: []
+  applyGroundCollision: 1
 --- !u!23 &111400012
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -243,10 +241,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 154078064}
-  - component: {fileID: 154078065}
   - component: {fileID: 154078067}
   - component: {fileID: 154078066}
-  - component: {fileID: 154078068}
   m_Layer: 0
   m_Name: GameObject
   m_TagString: Untagged
@@ -269,30 +265,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &154078065
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 154078062}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fa0654afbfb8ee3419426e4b6cb51d08, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  springPointPrefab: {fileID: -1861832841008415899, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
-  fixBottomCorners: 1
-  spacing: 1
-  connectionRadius: 3
-  springConstant: 10
-  damperConstant: 0.5
-  gridSize: 3
-  allConnectionsTest: []
-  allSpringPointsTest: []
-  groundLevel: 0
-  groundBounce: 0.5
-  groundFriction: 0.8
 --- !u!23 &154078066
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -346,43 +318,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 154078062}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!114 &154078068
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 154078062}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d2b2cac09ee66c0429c95af20e4815e1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  isSolid: 1
-  material: {fileID: 0}
-  mass: 1
-  stiffness: 500
-  damping: 10
-  gravity: {x: 0, y: -9.81, z: 0}
-  massPrefab: {fileID: 5670140962008554870, guid: 983e3917354fb6843aca5c52299a3c61, type: 3}
-  springMaterial: {fileID: 2100000, guid: eae91c937d4ee884bbec2760ea09d88b, type: 2}
-  massScale: 0.1
-  physicsSubsteps: 3
-  enableGroundCollision: 1
-  groundLevel: 0
-  collisionBounce: 0.6
-  collisionFriction: 0.7
-  gridSizeX: 5
-  gridSizeY: 5
-  gridSizeZ: 5
-  spacing: 1
-  fixedCorners: 0
-  wallThickness: 1
-  addInternalBracing: 1
-  connectInternalLayers: 1
-  useOptimizedSprings: 1
-  limitBendSprings: 1
-  maxSpringDistance: 1.5
 --- !u!1 &161842722
 GameObject:
   m_ObjectHideFlags: 0
@@ -414,7 +349,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc7e8612c85b34a4793f78fc94b931b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  springPointPrefab: {fileID: -1861832841008415899, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
   visualizeConnections: 1
   minNodeSize: 0.5
   PointSpacing: 0.5
@@ -428,8 +362,7 @@ MonoBehaviour:
   groundLevel: 0
   groundBounce: 0.5
   groundFriction: 0.8
-  allConnectionsTest: []
-  allSpringPointsTest: []
+  applyGroundCollision: 1
 --- !u!23 &161842724
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -637,7 +570,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &744261172
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -650,22 +583,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc7e8612c85b34a4793f78fc94b931b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  springPointPrefab: {fileID: -1861832841008415899, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
-  visualizeConnections: 1
+  visualizeConnections: 0
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
   springConstant: 100
   damperConstant: 0.6
   connectionRadius: 2
-  maxRestLength: 2
+  maxRestLength: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
   groundBounce: 0.5
   groundFriction: 0.8
-  allConnectionsTest: []
-  allSpringPointsTest: []
+  applyGroundCollision: 1
 --- !u!23 &744261173
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -796,7 +727,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &806052909
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -809,22 +740,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc7e8612c85b34a4793f78fc94b931b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  springPointPrefab: {fileID: -1861832841008415899, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
-  visualizeConnections: 1
+  visualizeConnections: 0
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
   springConstant: 100
   damperConstant: 0.6
   connectionRadius: 2
-  maxRestLength: 2
+  maxRestLength: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
   groundBounce: 0.5
   groundFriction: 0.8
-  allConnectionsTest: []
-  allSpringPointsTest: []
+  applyGroundCollision: 1
 --- !u!23 &806052910
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -911,7 +840,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &876942967
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -924,22 +853,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc7e8612c85b34a4793f78fc94b931b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  springPointPrefab: {fileID: -1861832841008415899, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
-  visualizeConnections: 1
+  visualizeConnections: 0
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
   springConstant: 100
   damperConstant: 0.6
   connectionRadius: 2
-  maxRestLength: 2
+  maxRestLength: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
   groundBounce: 0.5
   groundFriction: 0.8
-  allConnectionsTest: []
-  allSpringPointsTest: []
+  applyGroundCollision: 1
 --- !u!23 &876942968
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1026,7 +953,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!23 &961952773
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1107,22 +1034,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc7e8612c85b34a4793f78fc94b931b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  springPointPrefab: {fileID: -1861832841008415899, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
-  visualizeConnections: 1
+  visualizeConnections: 0
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
   springConstant: 100
   damperConstant: 0.6
   connectionRadius: 2
-  maxRestLength: 2
+  maxRestLength: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
   groundBounce: 0.5
   groundFriction: 0.8
-  allConnectionsTest: []
-  allSpringPointsTest: []
+  applyGroundCollision: 1
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0
@@ -1307,7 +1232,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc7e8612c85b34a4793f78fc94b931b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  springPointPrefab: {fileID: -1861832841008415899, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
   visualizeConnections: 1
   minNodeSize: 0.5
   PointSpacing: 0.5
@@ -1315,14 +1239,13 @@ MonoBehaviour:
   springConstant: 100
   damperConstant: 0.6
   connectionRadius: 2
-  maxRestLength: 2
+  maxRestLength: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
   groundBounce: 0.5
   groundFriction: 0.8
-  allConnectionsTest: []
-  allSpringPointsTest: []
+  applyGroundCollision: 1
 --- !u!23 &968068586
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1422,7 +1345,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc7e8612c85b34a4793f78fc94b931b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  springPointPrefab: {fileID: -1861832841008415899, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
   visualizeConnections: 1
   minNodeSize: 0.5
   PointSpacing: 0.5
@@ -1436,8 +1358,7 @@ MonoBehaviour:
   groundLevel: 0
   groundBounce: 0.5
   groundFriction: 0.8
-  allConnectionsTest: []
-  allSpringPointsTest: []
+  applyGroundCollision: 1
 --- !u!23 &1320767102
 MeshRenderer:
   m_ObjectHideFlags: 0

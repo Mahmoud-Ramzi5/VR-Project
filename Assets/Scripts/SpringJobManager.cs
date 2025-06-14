@@ -175,7 +175,7 @@ public class SpringJobManager : MonoBehaviour
         // Update positions and velocities from parent system
         for (int i = 0; i < parentSystem.allSpringPointsTest.Count; i++)
         {
-            positions[i] = parentSystem.allSpringPointsTest[i].transform.position;
+            positions[i] = parentSystem.allSpringPointsTest[i].position;
             velocities[i] = parentSystem.allSpringPointsTest[i].velocity;
         }
 

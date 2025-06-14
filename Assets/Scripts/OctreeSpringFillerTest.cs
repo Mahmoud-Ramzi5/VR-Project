@@ -18,7 +18,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
     public float springConstant = 10f;
     public float damperConstant = 0.5f;
     public float connectionRadius = 2f;
-    public float maxRestLength = 2f;
+    public float maxRestLength = 3f;
 
     [Header("Mesh Settings")]
     public float totalMass = 100f;
@@ -45,6 +45,22 @@ public class OctreeSpringFillerTest : MonoBehaviour
     // Jobs
     private SpringJobManager jobManager;
 
+    // Debug
+    private LineRenderer lineRenderer;
+
+    private void Awake()
+    {
+        GameObject obj = new GameObject("LineRenderer");
+        obj.transform.SetParent(transform);
+
+        lineRenderer = obj.AddComponent<LineRenderer>();
+        lineRenderer.positionCount = 0;
+        lineRenderer.useWorldSpace = true;
+
+        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        lineRenderer.startWidth = 0.05f;
+        lineRenderer.endWidth = 0.05f;
+    }
 
     void Start()
     {
@@ -87,9 +103,9 @@ public class OctreeSpringFillerTest : MonoBehaviour
           // Spread out expensive operations
         
             // Update spring connections visuals
-            foreach (ConnectionTest connection in allConnectionsTest) {
-                connection.UpdateLinePos();
-            }
+            //foreach (ConnectionTest connection in allConnectionsTest) {
+            //    connection.UpdateLinePos();
+            //}
 
             foreach (SpringPointTest point in allSpringPointsTest)
             {
@@ -149,6 +165,23 @@ public class OctreeSpringFillerTest : MonoBehaviour
             point.UpdatePoint(Time.fixedDeltaTime);
         }
 
+        if (!visualizeConnections)
+        {
+            lineRenderer.enabled = false;
+            return;
+        }
+
+        lineRenderer.enabled = true;
+
+        // Only update every few frames
+        //if (Time.frameCount % 3 == 0)
+        //{
+        for (int i = 0; i < allConnectionsTest.Count; i++)
+        {
+            lineRenderer.SetPosition(i * 2, allConnectionsTest[i].point1.position);
+            lineRenderer.SetPosition(i * 2 + 1, allConnectionsTest[i].point2.position);
+        }
+        //}
     }
 
     // Call this when connections change
@@ -163,9 +196,9 @@ public class OctreeSpringFillerTest : MonoBehaviour
 
     public void HandleGroundCollisionTest(SpringPointTest point)
     {
-        if (point.transform.position.y < groundLevel)
+        if (point.position.y < groundLevel)
         {
-            point.transform.position = new Vector3(point.transform.position.x, groundLevel, point.transform.position.z);
+            point.position = new Vector3(point.position.x, groundLevel, point.position.z);
 
             if (point.velocity.y < 0)
             {
@@ -180,15 +213,13 @@ public class OctreeSpringFillerTest : MonoBehaviour
 
     void UpdateMeshFromPoints()
     {
-        // Get the mesh we want to modify
-        Mesh mesh = GetComponent<MeshFilter>().mesh;
-        Vector3[] vertices = mesh.vertices;
+        Vector3[] vertices = meshVertices;
 
         // Find average position of all points
         Vector3 averagePos = Vector3.zero;
         foreach (var point in allSpringPointsTest)
         {
-            averagePos += point.transform.position;
+            averagePos += point.position;
         }
         averagePos /= allSpringPointsTest.Count;
 
@@ -205,14 +236,14 @@ public class OctreeSpringFillerTest : MonoBehaviour
             if (closestPoint != null)
             {
                 // Update vertex position relative to new mesh position
-                vertices[i] = transform.InverseTransformPoint(closestPoint.transform.position);
+                vertices[i] = transform.InverseTransformPoint(closestPoint.position);
             }
         }
 
         // Apply changes to mesh
-        mesh.vertices = vertices;
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
+        targetMesh.vertices = vertices;
+        targetMesh.RecalculateNormals();
+        targetMesh.RecalculateBounds();
     }
 
     SpringPointTest FindClosestPoint(Vector3 worldPos)
@@ -222,7 +253,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
 
         foreach (var point in allSpringPointsTest)
         {
-            float dist = Vector3.Distance(worldPos, point.transform.position);
+            float dist = Vector3.Distance(worldPos, point.position);
             if (dist < minDist)
             {
                 minDist = dist;
@@ -271,6 +302,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
         int total_nodes = BuildOctree(rootNode);
         //CreateSpringConnections();
         CreateSpringConnectionsTest();
+        UpdateConnectionsVisualization();
 
         // Some logs
         Debug.Log($"Octree Nodes: {total_nodes}");
@@ -279,11 +311,11 @@ public class OctreeSpringFillerTest : MonoBehaviour
 
     void ClearExistingPoints()
     {
-        foreach (var point in allSpringPointsTest)
-        {
-            if (point != null && point.gameObject != null)
-                Destroy(point.gameObject);
-        }
+        //foreach (var point in allSpringPointsTest)
+        //{
+        //    if (point != null && point.gameObject != null)
+        //        Destroy(point.gameObject);
+        //}
         allSpringPointsTest.Clear();
     }
 
@@ -413,26 +445,29 @@ public class OctreeSpringFillerTest : MonoBehaviour
         SpringPointTest point;
         if (springPointPrefab != null)
         {
-            point = Instantiate(springPointPrefab, worldPos, Quaternion.identity);
+            point = new SpringPointTest(worldPos);
+
+            //point = Instantiate(springPointPrefab, worldPos, Quaternion.identity);
             // Instantiate as child and use localPosition
             //point = Instantiate(springPointPrefab, transform);
             //point.transform.localPosition = transform.InverseTransformPoint(worldPos);
         }
         else
         {
+            point = new SpringPointTest(worldPos);
             // Create fallback GameObject with SpringPoint if prefab is missing
-            GameObject fallback = new GameObject("SpringPoint_Fallback");
+            //GameObject fallback = new GameObject("SpringPoint_Fallback");
 
             //fallback.transform.parent = transform;
             //fallback.transform.localPosition = transform.InverseTransformPoint(worldPos);
 
-            point = fallback.AddComponent<SpringPointTest>();
+            //point = fallback.AddComponent<SpringPointTest>();
         }
 
         point.mass = 1.0f;
         point.radius = 0.1f;
         point.nodeBounds = bounds;
-        point.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
+        //point.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
 
         //if (isMeshVertex)
         //{
@@ -517,16 +552,16 @@ public class OctreeSpringFillerTest : MonoBehaviour
             for (int j = i + 1; j < allSpringPointsTest.Count; j++)
             {
                 SpringPointTest otherPoint = allSpringPointsTest[j];
-                float distance = Vector3.Distance(currentPoint.transform.position, otherPoint.transform.position);
+                float distance = Vector3.Distance(currentPoint.position, otherPoint.position);
 
                 // Connect if within radius and not already connected
                 if (distance <= connectionRadius * PointSpacing && !IsConnectedTest(currentPoint, otherPoint))
                 {
                     // Clamp rest length to reasonable values
-                    float restLength = Mathf.Clamp(distance, 0.5f, 3f);
+                    float restLength = Mathf.Clamp(distance, 0.5f, maxRestLength);
 
                     ConnectionTest c = new ConnectionTest(currentPoint, otherPoint, restLength, springConstant, damperConstant);
-                    c.InitLineRenderer(transform);
+                    //c.InitLineRenderer(transform);
                     allConnectionsTest.Add(c);
                 }
             }
@@ -639,5 +674,20 @@ public class OctreeSpringFillerTest : MonoBehaviour
         return dist >= -epsilon; 
     }
     //  
+
+    // Debug
+    public void UpdateConnectionsVisualization()
+    {
+        lineRenderer.positionCount = allConnectionsTest.Count * 2;
+
+        Vector3[] positions = new Vector3[allConnectionsTest.Count * 2];
+        for (int i = 0; i < allConnectionsTest.Count; i++)
+        {
+            positions[i * 2] = allConnectionsTest[i].point1.position;
+            positions[i * 2 + 1] = allConnectionsTest[i].point2.position;
+        }
+
+        lineRenderer.SetPositions(positions);
+    }
 
 }

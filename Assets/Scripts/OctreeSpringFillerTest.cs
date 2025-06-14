@@ -1,7 +1,8 @@
 using UnityEngine;
+using Unity.Collections;
+using Unity.Mathematics;
 using System.Collections.Generic;
 using System.Linq;
-using System;
 
 
 public class OctreeSpringFillerTest : MonoBehaviour
@@ -40,6 +41,10 @@ public class OctreeSpringFillerTest : MonoBehaviour
     private List<Vector3> allPointPositions = new List<Vector3>();
     public List<ConnectionTest> allConnectionsTest = new List<ConnectionTest>();
     public List<SpringPointTest> allSpringPointsTest = new List<SpringPointTest>();
+    
+    // Jobs
+    private SpringJobManager jobManager;
+
 
     void Start()
     {
@@ -63,44 +68,74 @@ public class OctreeSpringFillerTest : MonoBehaviour
             Vector3 moveStep = transform.position - lastPos;
             point.UpdateBounds(moveStep);
         }
+
+
+        // Use Jobs to calculate physics on GPU threads
+        // Parallelizing calculations improves performance
+        jobManager = gameObject.AddComponent<SpringJobManager>();
+        jobManager.InitializeArrays(this, allSpringPointsTest.Count, allConnectionsTest.Count);
+
+        // Initial connection data setup
+        jobManager.UpdateConnectionData(allConnectionsTest);
+
     }
 
     private void Update()
     {
-        // Update spring connections visuals
-        foreach(ConnectionTest connection in allConnectionsTest) {
-            connection.UpdateLinePos();
-        }
+        if (Time.frameCount % 5 == 0)
+        { // Run every 5th frame
+          // Spread out expensive operations
+        
+            // Update spring connections visuals
+            foreach (ConnectionTest connection in allConnectionsTest) {
+                connection.UpdateLinePos();
+            }
 
-        foreach (SpringPointTest point in allSpringPointsTest)
-        {
-            if (transform.position != lastPos)
+            foreach (SpringPointTest point in allSpringPointsTest)
             {
-                Vector3 moveStep = transform.position - lastPos;
-                if(moveStep.magnitude > 0.001f)
+                if (transform.position != lastPos)
                 {
-                    point.UpdateBounds(moveStep);
+                    Vector3 moveStep = transform.position - lastPos;
+                    if(moveStep.magnitude > 0.001f)
+                    {
+                        point.UpdateBounds(moveStep);
+                    }
                 }
             }
-        }
-        if (transform.position != lastPos)
-        {
-            lastPos = transform.position;
+            if (transform.position != lastPos)
+            {
+                lastPos = transform.position;
+            }
         }
     }
 
     void FixedUpdate()
     {
-        HandleGravity();
+        // 1. Schedule gravity job
+        jobManager.ScheduleGravityJobs(gravity, applyGravity);
 
-        // Update springs
-        foreach (var connection in allConnectionsTest)
+        // 2. Schedule spring jobs
+        jobManager.ScheduleSpringJobs(springConstant, damperConstant);
+
+        // 3. Schedule collision jobs
+        //jobManager.ScheduleCollisionJobs(groundLevel, groundBounce, groundFriction);
+
+        // 4. Complete all jobs and apply results
+        jobManager.CompleteAllJobsAndApply();
+
+        //// Update springs
+        //// This was moved to Jobs
+        //foreach (var connection in allConnectionsTest)
+        //{
+        //    connection.CalculateAndApplyForces();
+        //}
+
+        // 5. Update mesh (consider throttling this)
+        if (Time.frameCount % 3 == 0) // Update mesh every 3 physics frames
         {
-            connection.CalculateAndApplyForces();
+            // Update mesh to follow points
+            UpdateMeshFromPoints();
         }
-
-        // Update mesh to follow points
-        UpdateMeshFromPoints();
 
         // Handle collisions
         if (true)
@@ -111,7 +146,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
             }
         }
 
-        // Update points
+        // Update points (if needed)
         foreach (var point in allSpringPointsTest)
         {
             point.UpdatePoint(Time.fixedDeltaTime);
@@ -119,14 +154,12 @@ public class OctreeSpringFillerTest : MonoBehaviour
 
     }
 
-    public void HandleGravity()
+    // Call this when connections change
+    public void UpdateConnections()
     {
-        foreach (var point in allSpringPointsTest)
+        if (jobManager != null)
         {
-            if (applyGravity)
-            {
-                point.force += gravity * point.mass;
-            }
+            jobManager.UpdateConnectionData(allConnectionsTest);
         }
     }
 

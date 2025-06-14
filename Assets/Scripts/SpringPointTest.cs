@@ -61,9 +61,10 @@ public class ConnectionTest
         float velocityAlongSpring = Vector3.Dot(relativeVelocity, direction.normalized);
         Vector3 dampingForce = damperConstant * velocityAlongSpring * direction.normalized;
 
-        // Apply forces
+        // Combine forces
         Vector3 netForce = springForce + dampingForce;
 
+        // Apply forces
         point1.force += netForce;
         point2.force -= netForce;
     }

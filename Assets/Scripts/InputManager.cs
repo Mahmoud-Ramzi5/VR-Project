@@ -1,9 +1,12 @@
+using NUnit.Framework;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class InputManager : MonoBehaviour
 {
     private Transform selectedObject;
     private float objectZCoord;
+    public MeshDeformer deformer;
 
     void Update()
     {

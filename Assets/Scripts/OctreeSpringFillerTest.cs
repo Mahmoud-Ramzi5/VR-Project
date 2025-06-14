@@ -41,7 +41,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
     public List<ConnectionTest> allConnectionsTest = new List<ConnectionTest>();
     public List<SpringPointTest> allSpringPointsTest = new List<SpringPointTest>();
 
-    void Start()
+    void Awake()
     {
         // save transform
         lastPos = transform.position;

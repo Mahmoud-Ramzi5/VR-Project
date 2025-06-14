@@ -18,7 +18,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
     public float springConstant = 10f;
     public float damperConstant = 0.5f;
     public float connectionRadius = 2f;
-    public float maxRestLength = 2f;
+    public float maxRestLength = 3f;
 
     [Header("Mesh Settings")]
     public float totalMass = 100f;
@@ -45,6 +45,22 @@ public class OctreeSpringFillerTest : MonoBehaviour
     // Jobs
     private SpringJobManager jobManager;
 
+    // Debug
+    private LineRenderer lineRenderer;
+
+    private void Awake()
+    {
+        GameObject obj = new GameObject("LineRenderer");
+        obj.transform.SetParent(transform);
+
+        lineRenderer = obj.AddComponent<LineRenderer>();
+        lineRenderer.positionCount = 0;
+        lineRenderer.useWorldSpace = true;
+
+        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        lineRenderer.startWidth = 0.05f;
+        lineRenderer.endWidth = 0.05f;
+    }
 
     void Start()
     {
@@ -87,9 +103,9 @@ public class OctreeSpringFillerTest : MonoBehaviour
           // Spread out expensive operations
         
             // Update spring connections visuals
-            foreach (ConnectionTest connection in allConnectionsTest) {
-                connection.UpdateLinePos();
-            }
+            //foreach (ConnectionTest connection in allConnectionsTest) {
+            //    connection.UpdateLinePos();
+            //}
 
             foreach (SpringPointTest point in allSpringPointsTest)
             {
@@ -149,6 +165,23 @@ public class OctreeSpringFillerTest : MonoBehaviour
             point.UpdatePoint(Time.fixedDeltaTime);
         }
 
+        if (!visualizeConnections)
+        {
+            lineRenderer.enabled = false;
+            return;
+        }
+
+        lineRenderer.enabled = true;
+
+        // Only update every few frames
+        //if (Time.frameCount % 3 == 0)
+        //{
+        for (int i = 0; i < allConnectionsTest.Count; i++)
+        {
+            lineRenderer.SetPosition(i * 2, allConnectionsTest[i].point1.transform.position);
+            lineRenderer.SetPosition(i * 2 + 1, allConnectionsTest[i].point2.transform.position);
+        }
+        //}
     }
 
     // Call this when connections change
@@ -180,9 +213,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
 
     void UpdateMeshFromPoints()
     {
-        // Get the mesh we want to modify
-        Mesh mesh = GetComponent<MeshFilter>().mesh;
-        Vector3[] vertices = mesh.vertices;
+        Vector3[] vertices = meshVertices;
 
         // Find average position of all points
         Vector3 averagePos = Vector3.zero;
@@ -210,9 +241,9 @@ public class OctreeSpringFillerTest : MonoBehaviour
         }
 
         // Apply changes to mesh
-        mesh.vertices = vertices;
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
+        targetMesh.vertices = vertices;
+        targetMesh.RecalculateNormals();
+        targetMesh.RecalculateBounds();
     }
 
     SpringPointTest FindClosestPoint(Vector3 worldPos)
@@ -271,6 +302,7 @@ public class OctreeSpringFillerTest : MonoBehaviour
         int total_nodes = BuildOctree(rootNode);
         //CreateSpringConnections();
         CreateSpringConnectionsTest();
+        UpdateConnectionsVisualization();
 
         // Some logs
         Debug.Log($"Octree Nodes: {total_nodes}");
@@ -523,10 +555,10 @@ public class OctreeSpringFillerTest : MonoBehaviour
                 if (distance <= connectionRadius * PointSpacing && !IsConnectedTest(currentPoint, otherPoint))
                 {
                     // Clamp rest length to reasonable values
-                    float restLength = Mathf.Clamp(distance, 0.5f, 3f);
+                    float restLength = Mathf.Clamp(distance, 0.5f, maxRestLength);
 
                     ConnectionTest c = new ConnectionTest(currentPoint, otherPoint, restLength, springConstant, damperConstant);
-                    c.InitLineRenderer(transform);
+                    //c.InitLineRenderer(transform);
                     allConnectionsTest.Add(c);
                 }
             }
@@ -639,5 +671,20 @@ public class OctreeSpringFillerTest : MonoBehaviour
         return dist >= -epsilon; 
     }
     //  
+
+    // Debug
+    public void UpdateConnectionsVisualization()
+    {
+        lineRenderer.positionCount = allConnectionsTest.Count * 2;
+
+        Vector3[] positions = new Vector3[allConnectionsTest.Count * 2];
+        for (int i = 0; i < allConnectionsTest.Count; i++)
+        {
+            positions[i * 2] = allConnectionsTest[i].point1.transform.position;
+            positions[i * 2 + 1] = allConnectionsTest[i].point2.transform.position;
+        }
+
+        lineRenderer.SetPositions(positions);
+    }
 
 }

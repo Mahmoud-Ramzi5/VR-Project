@@ -10,9 +10,6 @@ public class ConnectionTest
     public float damperConstant = 0.5f;
     public float restLength = 1f;
 
-    // For Debug
-    private LineRenderer lineRenderer;
-
     public ConnectionTest(SpringPointTest point1, SpringPointTest point2, float restLength, float springConstant, float damperConstant)
     {
         this.point1 = point1;
@@ -22,23 +19,8 @@ public class ConnectionTest
         this.damperConstant = damperConstant;
     }
 
-    public void InitLineRenderer(Transform meshTransform)
-    {
-        var lineObj = new GameObject("Connection");
-        lineObj.transform.SetParent(meshTransform);
-        lineRenderer = lineObj.AddComponent<LineRenderer>();
-        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-        lineRenderer.startWidth = 0.05f;
-        lineRenderer.endWidth = 0.05f;
-    }
-
-    public void UpdateLinePos()
-    {
-        lineRenderer.SetPosition(0, point1.transform.position);
-        lineRenderer.SetPosition(1, point2.transform.position);
-    }
-
-
+    // this no longer being called 
+    // the logic has been moved to Jobs
     public void CalculateAndApplyForces()
     {
         // --- NaN/Zero Distance Check --- 
@@ -108,7 +90,6 @@ public class SpringPointTest : MonoBehaviour
         if (float.IsNaN(transform.position.x) || float.IsNaN(transform.position.y) || float.IsNaN(transform.position.z))
         {
             Debug.LogWarning($"NaN in {name}. Resetting.");
-            //transform.position = initialPosition;
             velocity = Vector3.zero;
             force = Vector3.zero;
             return;
@@ -143,7 +124,6 @@ public class SpringPointTest : MonoBehaviour
         }
         else
         {
-            //transform.position = initialPosition;
             velocity = Vector3.zero;
         }
 
@@ -180,7 +160,6 @@ public class SpringPointTest : MonoBehaviour
 
         boundsMin = newCenter - nodeBounds.extents;
         boundsMax = newCenter + nodeBounds.extents;
-        //Debug.Log($"boundsMin {boundsMin}, boundsMax {boundsMax}");
     }
 
     public void DrawBoundingBox()

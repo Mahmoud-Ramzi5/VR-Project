@@ -198,7 +198,7 @@ public class MeshDeformer : MonoBehaviour
 
             foreach (SpringPointTest sp in springFiller.allSpringPointsTest)
             {
-                float distance = Vector3.Distance(vertexWorld, sp.transform.position);
+                float distance = Vector3.Distance(vertexWorld, sp.position);
                 if (distance < influenceRadius)
                 {
                     float weight = Mathf.Exp(-distance * distance);
@@ -226,8 +226,7 @@ public class MeshDeformer : MonoBehaviour
 
             foreach (var inf in vertexInfluences[i])
             {
-                Vector3 displacement = inf.springPoint.transform.position -
-                                      inf.springPoint.initialPosition;
+                Vector3 displacement = inf.springPoint.position - inf.springPoint.initialPosition;
 
                 newPos += displacement * inf.weight;
                 totalWeight += inf.weight;
@@ -271,7 +270,7 @@ public class MeshDeformer : MonoBehaviour
             Vector3 worldPos = transform.TransformPoint(currentVertices[i]);
             foreach (var inf in vertexInfluences[i])
             {
-                Gizmos.DrawLine(worldPos, inf.springPoint.transform.position);
+                Gizmos.DrawLine(worldPos, inf.springPoint.position);
             }
         }
     }

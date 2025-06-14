@@ -1,37 +1,65 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-
-[System.Serializable]
-public class Connection
+public class SpringConnection
 {
-    public SpringPoint point;
-    public float springConstant = 10f;
+    public SpringPoint point1, point2;
+    public float springConstant = 100f;
     public float damperConstant = 0.5f;
     public float restLength = 1f;
 
-    public Connection(SpringPoint point, float restLength, float springConstant, float damperConstant)
+    public SpringConnection(SpringPoint point1, SpringPoint point2, float restLength, float springConstant, float damperConstant)
     {
-        this.point = point;
+        this.point1 = point1;
+        this.point2 = point2;
         this.restLength = restLength;
         this.springConstant = springConstant;
         this.damperConstant = damperConstant;
     }
+
+    // this no longer being called 
+    // the logic has been moved to Jobs
+    public void CalculateAndApplyForces()
+    {
+        // --- NaN/Zero Distance Check --- 
+        if (point1 == null || point2 == null || point1.position == point2.position)
+            return;
+
+        Vector3 direction = point2.position - point1.position;
+        float dist = direction.magnitude;
+
+        if (dist == 0 || float.IsNaN(dist)) return;
+
+        // Hooke's Law
+        // Calculate spring force using Hooke's Law
+        float stretch = dist - restLength;
+        Vector3 springForce = springConstant * stretch * direction.normalized; // Normalized direction
+
+        // Damping
+        // Apply damping to prevent sliding at higher speeds
+        Vector3 relativeVelocity = point2.velocity - point1.velocity;
+        float velocityAlongSpring = Vector3.Dot(relativeVelocity, direction.normalized);
+        Vector3 dampingForce = damperConstant * velocityAlongSpring * direction.normalized;
+
+        // Combine forces
+        Vector3 netForce = springForce + dampingForce;
+
+        // Apply forces
+        point1.force += netForce;
+        point2.force -= netForce;
+    }
 }
 
-public class SpringPoint : MonoBehaviour
+public class SpringPoint
 {
-    public List<Connection> connections;
-    private static List<SpringPoint> allParticles = new List<SpringPoint>();
-
     public float mass = 1f;
     public float radius = 0.5f;
-    public Vector3 velocity;
-    private Vector3 acceleration;
-    public bool isFixed = false;
 
-    public bool applyGravity = true;
-    public Vector3 gravity => new Vector3(0, -9.81f, 0);
+    public Vector3 force;
+    public Vector3 velocity;
+    public Vector3 position;
+    public bool isFixed = false;
+    public Vector3 initialPosition;
 
     [Header("Collision")]
     public float bounciness = 0.2f;
@@ -42,203 +70,67 @@ public class SpringPoint : MonoBehaviour
     public Vector3 boundsMin = new Vector3(0, 0, 0);
     public Vector3 boundsMax = new Vector3(0, 0, 0);
 
-    private LineRenderer lineRenderer;
-
     [Header("Mesh")]
     public bool isMeshVertex = false;
     public int triangleIndex;
 
-    [HideInInspector] public Vector3 initialPosition;
-
-    private void Awake()
+    public SpringPoint(Vector3 position)
     {
-        // Initialize connections if null
-        if (connections == null)
-        {
-            connections = new List<Connection>();
-        }
+        this.position = position;
+        initialPosition = position;
     }
 
-    private void Start()
-    {
-        initialPosition = transform.position;
-        allParticles.Add(this);
-
-        lineRenderer = gameObject.AddComponent<LineRenderer>();
-        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-        lineRenderer.startColor = Color.white;
-        lineRenderer.endColor = Color.white;
-        lineRenderer.startWidth = 0.01f;
-        lineRenderer.endWidth = 0.01f;
-
-        //foreach (Connection connection in connections)
-        //{
-        //    if (connection.point != null)
-        //    {
-        //        // Set the correct rest length based on the initial positions of the SpringPoints.
-        //        connection.restLength = Vector3.Distance(transform.position, connection.point.transform.position);
-        //    }
-        //}
-    }
-
-    private void FixedUpdate()
+    public void UpdatePoint(float deltaTime)
     {
         if (isFixed) return;
 
-        float deltaTime = Time.fixedDeltaTime;
-        float fixedDt = Mathf.Min(Time.deltaTime, 0.02f); // 50Hz max
-        Vector3 netForce = applyGravity ? gravity * mass : Vector3.zero;
-
-        netForce += CalculateSpringForces();
-        acceleration = netForce / mass;
-
-        // Semi-implicit Euler integration
-        velocity += acceleration * fixedDt;
-        transform.position += velocity * fixedDt;
-
-        if (velocity.magnitude < 0.001f)
+        // --- NaN/Origin Checks ---
+        if (float.IsNaN(position.x) || float.IsNaN(position.y) || float.IsNaN(position.z))
+        {
+            Debug.LogWarning($"NaN. Resetting.");
             velocity = Vector3.zero;
-
-        HandleCollisions();
-        HandleBoundaryBox();
-    }
-
-
-
-    private void Update()
-    {
-        if (lineRenderer == null) return;
-
-        lineRenderer.positionCount = connections.Count * 2;
-
-        int index = 0;
-        foreach (Connection conn in connections)
-        {
-            if (conn.point == null) continue;
-            lineRenderer.SetPosition(index++, transform.position);
-            lineRenderer.SetPosition(index++, conn.point.transform.position);
-        }
-    }
-
-
-    private Vector3 CalculateSpringForces()
-    {
-        Vector3 netForce = Vector3.zero;
-
-        foreach (Connection connection in connections)
-        {
-            if (connection.point == null) continue;
-
-            Vector3 direction = connection.point.transform.position - transform.position;
-            float dist = direction.magnitude;
-
-            // Calculate spring force using Hooke's Law
-            float stretch = dist - connection.restLength;
-            Vector3 springForce = connection.springConstant * stretch * direction.normalized;
-
-            // Apply a reduction in spring force if the point is near the boundary
-            float boundaryFactor = 1f;
-
-            // Calculate how far the point is from the boundary
-            for (int i = 0; i < 3; i++)
-            {
-                //if (transform.position[i] - radius < boundsMin[i] || transform.position[i] + radius > boundsMax[i])
-                //{
-                //    // Reduce spring force near boundary
-                //    boundaryFactor = Mathf.Max(0.1f, boundaryFactor - 0.05f);
-                //}
-
-                float distToMin = transform.position[i] - radius - boundsMin[i];
-                float distToMax = boundsMax[i] - (transform.position[i] + radius);
-                float closestDist = Mathf.Min(distToMin, distToMax);
-                float threshold = 0.5f; // How far from boundary to start reducing
-
-                if (closestDist < threshold)
-                {
-                    boundaryFactor = Mathf.Min(boundaryFactor, Mathf.Clamp01(closestDist / threshold));
-                }
-            }
-
-            // Scale the spring force by boundary factor
-            springForce *= boundaryFactor;
-
-            // Apply damping to prevent sliding at higher speeds
-            float velocityAlongSpring = Vector3.Dot(velocity, direction.normalized);
-            Vector3 dampingForce = connection.damperConstant * velocityAlongSpring * direction.normalized;
-
-            // Combine forces
-            netForce += springForce - dampingForce;
+            force = Vector3.zero;
+            return;
         }
 
-        return netForce;
-    }
+        // Prevent division by zero
+        if (mass <= 0) mass = 1f;
 
-    private void HandleCollisions()
-    {
-        foreach (SpringPoint other in allParticles)
+        // --- Force/Velocity Validation ---
+        if (!float.IsNaN(force.x)  && !float.IsNaN(force.y) && !float.IsNaN(force.z))
         {
-            if (other == this || other == null) continue;
+            Vector3 acceleration = force / mass;
+            velocity += acceleration * deltaTime;
 
-            Vector3 delta = other.transform.position - transform.position;
-            float dist = delta.magnitude;
-            float minDist = radius + other.radius;
-
-            if (dist < minDist)
+            // Clamp velocity to prevent explosions
+            //if (velocity.magnitude > 100f)
+            //{
+            //    velocity = velocity.normalized * 100f;
+            //}
+            // More conservative velocity clamping
+            if (velocity.sqrMagnitude > 2500f) // 50 units/s squared
             {
-                Vector3 normal = delta.normalized;
-                float penetration = minDist - dist;
-                float totalInverseMass = (isFixed ? 0 : 1 / mass) + (other.isFixed ? 0 : 1 / other.mass);
-                if (totalInverseMass == 0) continue;
-
-                Vector3 correction = normal * (penetration / totalInverseMass);
-                velocity *= (1 - friction);
-
-                if (!isFixed)
-                    transform.position -= correction * (1 / mass) / totalInverseMass;
-                if (!other.isFixed)
-                    other.transform.position += correction * (1 / other.mass) / totalInverseMass;
-
-                Vector3 relVel = velocity - other.velocity;
-                float velAlongNormal = Vector3.Dot(relVel, normal);
-                if (velAlongNormal > 0) continue;
-
-                float e = Mathf.Min(bounciness, other.bounciness);
-                float j = -(1 + e) * velAlongNormal / (1 / mass + 1 / other.mass);
-                Vector3 impulse = j * normal;
-
-                if (!isFixed)
-                    velocity += impulse / mass;
-                if (!other.isFixed)
-                    other.velocity -= impulse / other.mass;
-
-                Vector3 tangent = relVel - velAlongNormal * normal;
-                float tangentMag = tangent.magnitude;
-                if (tangentMag > 0.0001f)
-                {
-                    tangent /= tangentMag;
-                    // friction impulse calculations here
-                }
-                else
-                {
-                    tangent = Vector3.zero; // no friction impulse
-                }
-
-                tangent = tangent.normalized;
-                float jt = -Vector3.Dot(relVel, tangent) / (1 / mass + 1 / other.mass);
-                float mu = Mathf.Sqrt(friction * other.friction);
-                Vector3 frictionImpulse = Mathf.Abs(jt) < j * mu ? jt * tangent : -j * mu * tangent;
-
-                if (!isFixed)
-                    velocity += frictionImpulse / mass;
-                if (!other.isFixed)
-                    other.velocity -= frictionImpulse / other.mass;
+                velocity = velocity.normalized * 50f;
             }
         }
+
+        // --- Position Update ---
+        Vector3 newPosition = position + (velocity * deltaTime);
+        if (!float.IsNaN(newPosition.x) && !float.IsNaN(newPosition.y) && !float.IsNaN(newPosition.z) && newPosition.magnitude < 100000f)
+        {
+            position = newPosition;
+        }
+        else
+        {
+            velocity = Vector3.zero;
+        }
+
+        force = Vector3.zero;
     }
 
     private void HandleBoundaryBox()
     {
-        Vector3 pos = transform.position;
+        Vector3 pos = position;
 
         for (int i = 0; i < 3; i++)
         {
@@ -256,7 +148,7 @@ public class SpringPoint : MonoBehaviour
             }
         }
 
-        transform.position = pos;
+        position = pos;
     }
 
     public void UpdateBounds(Vector3 moveStep)
@@ -277,21 +169,18 @@ public class SpringPoint : MonoBehaviour
         Gizmos.DrawWireCube(center, size);
     }
 
+    private void OnDrawGizmos()
+    {
+        DrawBoundingBox();
+    }
+
+
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.blue;
         Gizmos.DrawWireCube((boundsMin + boundsMax) * 0.5f, boundsMax - boundsMin);
     }
 
-    private void OnDrawGizmos()
-    {
-        DrawBoundingBox();
-    }
-
-    private void OnDestroy()
-    {
-        allParticles.Remove(this);
-    }
 
 
     // maintain shape against mesh boundaries
@@ -305,9 +194,9 @@ public class SpringPoint : MonoBehaviour
     //{
     //    if (mesh == null || meshTransform == null || isFixed) return;
 
-    //    Vector3 localPos = meshTransform.InverseTransformPoint(transform.position);
+    //    Vector3 localPos = meshTransform.InverseTransformPoint(position);
     //    Vector3 closestSurfacePoint = FindClosestMeshPoint(mesh, meshTransform);
-    //    Vector3 toSurface = closestSurfacePoint - transform.position;
+    //    Vector3 toSurface = closestSurfacePoint - position;
     //    float distance = toSurface.magnitude;
 
     //    if (distance > 0.001f)
@@ -326,7 +215,7 @@ public class SpringPoint : MonoBehaviour
     //        // --------- 2. Fallback: hard position snap if very far ---------
     //        if (distance > maxAllowedDistance)
     //        {
-    //            transform.position = Vector3.Lerp(transform.position, closestSurfacePoint, 0.5f);
+    //            position = Vector3.Lerp(position, closestSurfacePoint, 0.5f);
     //            velocity -= Vector3.Project(velocity, direction) * 0.5f;
     //        }
     //    }
@@ -342,8 +231,15 @@ public class SpringPoint : MonoBehaviour
         // 1. Find closest surface point
         Vector3 closestSurfacePoint = FindClosestMeshPoint(mesh, meshTransform);
 
+        // --- NaN Check ---
+        if (float.IsNaN(closestSurfacePoint.x))
+        {
+            Debug.LogWarning("Invalid mesh point detected! Using fallback.");
+            closestSurfacePoint = initialPosition;
+        }
+
         // 2. Calculate surface direction and distance
-        Vector3 toSurface = closestSurfacePoint - transform.position;
+        Vector3 toSurface = closestSurfacePoint - position;
         float distance = toSurface.magnitude;
         if (distance < 0.0001f) return;  // Avoid division by zero
 
@@ -373,7 +269,7 @@ public class SpringPoint : MonoBehaviour
     public Vector3 FindClosestMeshPoint(Mesh mesh, Transform meshTransform)
     {
         // Convert position to mesh local space
-        Vector3 localPos = meshTransform.InverseTransformPoint(transform.position);
+        Vector3 localPos = meshTransform.InverseTransformPoint(position);
 
         // Find closest vertex (fast approximation)
         Vector3 closestVertex = mesh.vertices[0];
@@ -399,7 +295,7 @@ public class SpringPoint : MonoBehaviour
     // High-precision physics, PC/console
     //private Vector3 FindClosestMeshPoint(Mesh mesh, Transform meshTransform)
     //{
-    //    Vector3 localPos = meshTransform.InverseTransformPoint(transform.position);
+    //    Vector3 localPos = meshTransform.InverseTransformPoint(position);
     //    Vector3 closestPoint = Vector3.zero;
     //    float closestDistance = Mathf.Infinity;
 

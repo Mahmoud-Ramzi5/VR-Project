@@ -33,6 +33,8 @@ public class SpringJobManager : MonoBehaviour
 
     public void InitializeArrays(OctreeSpringFiller parent, int pointCount, int connectionCount)
     {
+        currentPointCount = pointCount;
+        currentConnectionCount = connectionCount;
         parentSystem = parent;
 
         velocities = new NativeArray<float3>(pointCount, Allocator.Persistent);
@@ -55,6 +57,43 @@ public class SpringJobManager : MonoBehaviour
         // Initialize force map with estimated capacity
         int estimatedForceCount = connectionCount * 2 + pointCount;
         forceMap = new NativeParallelMultiHashMap<int, float3>(estimatedForceCount, Allocator.Persistent);
+    }
+    private int currentPointCount;
+    private int currentConnectionCount;
+
+    public void CheckAndResizeArrays(int newPointCount, int newConnectionCount)
+    {
+        // Only resize if necessary
+        if (newPointCount != currentPointCount || newConnectionCount != currentConnectionCount)
+        {
+            // Dispose old arrays if they exist
+            OnDestroy();
+
+            // Create new arrays
+            velocities = new NativeArray<float3>(newPointCount, Allocator.Persistent);
+            positions = new NativeArray<float3>(newPointCount, Allocator.Persistent);
+            masses = new NativeArray<float>(newPointCount, Allocator.Persistent);
+
+            connections = new NativeArray<int2>(newConnectionCount, Allocator.Persistent);
+            restLengths = new NativeArray<float>(newConnectionCount, Allocator.Persistent);
+
+            forcesBufferA = new NativeArray<float3>(newPointCount, Allocator.Persistent);
+            forcesBufferB = new NativeArray<float3>(newPointCount, Allocator.Persistent);
+
+            // Update estimated capacity for force map
+            int estimatedForceCount = newConnectionCount * 2 + newPointCount;
+            forceMap = new NativeParallelMultiHashMap<int, float3>(estimatedForceCount, Allocator.Persistent);
+
+            currentPointCount = newPointCount;
+            currentConnectionCount = newConnectionCount;
+
+            // Reinitialize masses
+            for (int i = 0; i < Mathf.Min(parentSystem.allSpringPoints.Count, newPointCount); i++)
+            {
+                masses[i] = parentSystem.allSpringPoints[i].mass;
+            }
+            
+        }
     }
 
     [BurstCompile]
@@ -145,6 +184,7 @@ public class SpringJobManager : MonoBehaviour
 
     public void ScheduleGravityJobs(float3 gravity, bool applyGravity)
     {
+        CheckAndResizeArrays(parentSystem.allSpringPoints.Count, parentSystem.allSpringConnections.Count);
         // Clear the force map
         forceMap.Clear();
 
@@ -162,6 +202,7 @@ public class SpringJobManager : MonoBehaviour
 
     public void ScheduleSpringJobs(float springConstant, float damperConstant)
     {
+        CheckAndResizeArrays(parentSystem.allSpringPoints.Count, parentSystem.allSpringConnections.Count);
         // Clear the force buffer by setting each element to zero
         var currentForceBuffer = usingBufferA ? forcesBufferA : forcesBufferB;
         for (int i = 0; i < currentForceBuffer.Length; i++)
@@ -209,6 +250,7 @@ public class SpringJobManager : MonoBehaviour
 
     public void CompleteAllJobsAndApply()
     {
+        CheckAndResizeArrays(parentSystem.allSpringPoints.Count, parentSystem.allSpringConnections.Count);
         // Complete All jobs
         JobHandle.CombineDependencies(gravityJobHandle, springJobHandle).Complete();
 

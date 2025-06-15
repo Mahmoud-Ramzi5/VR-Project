@@ -466,7 +466,8 @@ public class OctreeSpringFiller : MonoBehaviour
         // 7. Update job manager
         if (jobManager != null)
         {
-            jobManager.InitializeArrays(this, allSpringPoints.Count, allSpringConnections.Count);
+            jobManager.CheckAndResizeArrays(allSpringPoints.Count, allSpringConnections.Count);
+            jobManager.UpdateConnectionData(allSpringConnections);
         }
 
         // 8. Update visualization

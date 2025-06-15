@@ -218,7 +218,7 @@ public class OctreeSpringFiller : MonoBehaviour
             // Find closest spring point to this vertex
             Vector3 worldVertex = transform.TransformPoint(vertices[i]);
             SpringPoint closestPoint = FindClosestPoint(worldVertex);
-
+           
             if (closestPoint != null)
             {
                 // Update vertex position relative to new mesh position
@@ -427,83 +427,133 @@ public class OctreeSpringFiller : MonoBehaviour
         }
     }
 
-    void CreateSpringPoint(Vector3 worldPos, Bounds bounds, bool isMeshVertex)
+    // Add this method to the OctreeSpringFiller class
+    public void AddSpringPointAtPosition(Vector3 worldPosition)
+    {
+       
+
+        // 3. Create world bounds for the new point
+        Vector3 worldCenter = transform.TransformPoint(meshBounds.center);
+        Vector3 worldSize = Vector3.Scale(meshBounds.size, transform.lossyScale);
+        Bounds worldBounds = new Bounds(worldCenter, worldSize);
+
+        SpringPoint newPoint = CreateSpringPoint(worldPosition, worldBounds, false);
+
+        // 5. Update mesh data
+        UpdateMeshDataWithNewPoint(worldPosition);
+
+        // 5. Update masses for all points
+        float newMass = totalMass / allSpringPoints.Count;
+        foreach (var point in allSpringPoints)
+        {
+            point.mass = newMass;
+        }
+
+        // 6. Create connections for the new point
+        for (int i = 0; i < allSpringPoints.Count - 1; i++) // Skip the last point (itself)
+        {
+            SpringPoint other = allSpringPoints[i];
+            float dist = Vector3.Distance(newPoint.position, other.position);
+
+            if (dist <= connectionRadius * PointSpacing && !IsConnected(newPoint, other))
+            {
+                float restLength = Mathf.Clamp(dist, 0.5f, maxRestLength);
+                SpringConnection conn = new SpringConnection(newPoint, other, restLength, springConstant, damperConstant);
+                allSpringConnections.Add(conn);
+            }
+        }
+
+        // 7. Update job manager
+        if (jobManager != null)
+        {
+            jobManager.InitializeArrays(this, allSpringPoints.Count, allSpringConnections.Count);
+        }
+
+        // 8. Update visualization
+        GameObject newObj;
+        if (springPointPrefab != null)
+        {
+            newObj = Instantiate(springPointPrefab, newPoint.position, Quaternion.identity);
+            newObj.name = $"Point_{worldPosition.x}_{worldPosition.y}_{worldPosition.z}";
+        }
+        else
+        {
+            newObj = new GameObject($"Point_{worldPosition.x}_{worldPosition.y}_{worldPosition.z}");
+        }
+        objects.Add(newObj);
+
+        SetConnectionsVisualization();
+    }
+    private void UpdateMeshDataWithNewPoint(Vector3 newWorldPosition)
+    {
+        // Convert to local space
+        Vector3 newLocalPosition = transform.InverseTransformPoint(newWorldPosition);
+
+        // Create new arrays with increased size
+        Vector3[] newVertices = new Vector3[meshVertices.Length + 1];
+        int[] newTriangles = new int[meshTriangles.Length + 3]; // Adding one triangle
+
+        // Copy existing data
+        System.Array.Copy(meshVertices, newVertices, meshVertices.Length);
+        System.Array.Copy(meshTriangles, newTriangles, meshTriangles.Length);
+
+        // Add new vertex
+        newVertices[meshVertices.Length] = newLocalPosition;
+
+        // Create a new triangle connecting to nearby vertices
+        // Find 2 closest existing vertices
+        int closest1 = 0;
+        int closest2 = 1;
+        float minDist1 = float.MaxValue;
+        float minDist2 = float.MaxValue;
+
+        for (int i = 0; i < meshVertices.Length; i++)
+        {
+            float dist = Vector3.Distance(newLocalPosition, meshVertices[i]);
+            if (dist < minDist1)
+            {
+                minDist2 = minDist1;
+                closest2 = closest1;
+                minDist1 = dist;
+                closest1 = i;
+            }
+            else if (dist < minDist2)
+            {
+                minDist2 = dist;
+                closest2 = i;
+            }
+        }
+        
+        // Add new triangle (order matters for normal direction)
+        newTriangles[meshTriangles.Length] = closest1;
+        newTriangles[meshTriangles.Length + 1] = closest2;
+        newTriangles[meshTriangles.Length + 2] = meshVertices.Length; // New vertex index
+
+        // Update mesh references
+        meshVertices = newVertices;
+        meshTriangles = newTriangles;
+
+        // Update the actual mesh
+        targetMesh.vertices = newVertices;
+        targetMesh.triangles = newTriangles;
+        targetMesh.RecalculateNormals();
+        targetMesh.RecalculateBounds();
+    }
+
+    // Modify existing CreateSpringPoint to return the SpringPoint
+    private SpringPoint CreateSpringPoint(Vector3 worldPos, Bounds bounds, bool isMeshVertex)
     {
         SpringPoint point = new SpringPoint(worldPos);
-
         point.mass = 1.0f;
         point.radius = 0.1f;
         point.nodeBounds = bounds;
 
-
-        //if (isMeshVertex)
-        //{
-        //    point.isMeshVertex = true;
-        //}
-        //else
-        //{
-        //    Vector3 meshPoint = point.FindClosestMeshPoint(targetMesh, transform);
-
-        //    // Find the index of the triangle that contains the meshPoint
-        //    int triangleIndex = FindTriangleIndex(targetMesh, meshPoint);
-
-        //    if (triangleIndex != -1)
-        //    {
-        //        point.triangleIndex = triangleIndex;
-        //    }
-        //    else
-        //    {
-        //        point.triangleIndex = -1;
-        //    }
-        //}
+        // Existing commented code remains unchanged...
 
         allSpringPoints.Add(point);
+        allPointPositions.Add(worldPos);
 
-        // Function to find the index of the triangle that contains a point
-        int FindTriangleIndex(Mesh mesh, Vector3 point)
-        {
-            Vector3[] vertices = mesh.vertices;
-            int[] triangles = mesh.triangles;
-
-            for (int i = 0; i < triangles.Length; i += 3)
-            {
-                Vector3 v1 = vertices[triangles[i]];
-                Vector3 v2 = vertices[triangles[i + 1]];
-                Vector3 v3 = vertices[triangles[i + 2]];
-
-                // Check if the point is inside the triangle
-                if (IsPointInTriangle(point, v1, v2, v3))
-                {
-                    return i / 3; // Return the triangle index
-                }
-            }
-
-            return -1; // Return -1 if the point is not inside any triangle
-        }
-
-        // Function to check if a point is inside a triangle using Barycentric coordinates
-        bool IsPointInTriangle(Vector3 point, Vector3 a, Vector3 b, Vector3 c)
-        {
-            // Compute the vectors for the triangle edges
-            Vector3 v0 = b - a;
-            Vector3 v1 = c - a;
-            Vector3 v2 = point - a;
-
-            // Compute dot products
-            float dot00 = Vector3.Dot(v0, v0);
-            float dot01 = Vector3.Dot(v0, v1);
-            float dot02 = Vector3.Dot(v0, v2);
-            float dot11 = Vector3.Dot(v1, v1);
-            float dot12 = Vector3.Dot(v1, v2);
-
-            // Compute Barycentric coordinates
-            float invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
-            float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-            float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
-
-            // Check if point is in triangle
-            return (u >= 0) && (v >= 0) && (u + v < 1);
-        }
+        return point; // Return the created point
     }
 
     public void CreateSpringConnections()

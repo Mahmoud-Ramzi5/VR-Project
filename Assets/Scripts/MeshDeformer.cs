@@ -1,6 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using static UnityEditor.PlayerSettings;
 
 public class MeshDeformer : MonoBehaviour
 {
@@ -9,7 +8,7 @@ public class MeshDeformer : MonoBehaviour
     public int maxSubdivisionLevel = 3;
     public float influenceRadius = 1.0f;
     public bool showWeights = false;
-    public bool logSubdividedTriangles = true; // New flag for logging
+    public bool logSubdividedTriangles = true;
 
     private Mesh originalMesh;
     private Mesh workingMesh;
@@ -35,10 +34,10 @@ public class MeshDeformer : MonoBehaviour
         BuildInfluenceMapping();
     }
 
+
     void InitializeDeformationMesh()
     {
-        workingMesh = Instantiate(originalMesh);
-        meshFilter.mesh = workingMesh;
+        workingMesh = originalMesh;
 
         baseVertices = workingMesh.vertices;
         currentVertices = baseVertices.Clone() as Vector3[];
@@ -54,6 +53,107 @@ public class MeshDeformer : MonoBehaviour
                 canSubdivide = true
             });
         }
+
+        
+    }
+
+    void Update()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            HandleMouseClick();
+        }
+    }
+    
+    private void HandleMouseClick()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (FindClosestTriangle(ray, out int triangleIndex, out Vector3 hitPoint))
+        {
+            Vector3 localPoint = transform.InverseTransformPoint(hitPoint);
+            SubdivideSingleTriangle(triangleIndex, localPoint);
+        }
+    }
+
+    private bool FindClosestTriangle(Ray ray, out int closestTriangleIndex, out Vector3 hitPoint)
+    {
+        closestTriangleIndex = -1;
+        hitPoint = Vector3.zero;
+        float closestDistance = Mathf.Infinity;
+
+        Matrix4x4 localToWorld = transform.localToWorldMatrix;
+        Vector3[] vertices = workingMesh.vertices;
+        int[] triangles = workingMesh.triangles;
+
+        for (int i = 0; i < triangles.Length; i += 3)
+        {
+            Vector3 v0 = localToWorld.MultiplyPoint3x4(vertices[triangles[i]]);
+            Vector3 v1 = localToWorld.MultiplyPoint3x4(vertices[triangles[i + 1]]);
+            Vector3 v2 = localToWorld.MultiplyPoint3x4(vertices[triangles[i + 2]]);
+
+            if (RayIntersectsTriangle(ray, v0, v1, v2, out Vector3 intersectPoint))
+            {
+                float distance = Vector3.Distance(ray.origin, intersectPoint);
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestTriangleIndex = i / 3;
+                    hitPoint = intersectPoint;
+                }
+            }
+        }
+
+        return closestTriangleIndex != -1;
+    }
+
+    private bool RayIntersectsTriangle(Ray ray, Vector3 v0, Vector3 v1, Vector3 v2, out Vector3 intersectPoint)
+    {
+        intersectPoint = Vector3.zero;
+        Vector3 e1 = v1 - v0;
+        Vector3 e2 = v2 - v0;
+        Vector3 h = Vector3.Cross(ray.direction, e2);
+        float a = Vector3.Dot(e1, h);
+
+        if (a > -Mathf.Epsilon && a < Mathf.Epsilon)
+            return false;
+
+        float f = 1.0f / a;
+        Vector3 s = ray.origin - v0;
+        float u = f * Vector3.Dot(s, h);
+
+        if (u < 0.0 || u > 1.0)
+            return false;
+
+        Vector3 q = Vector3.Cross(s, e1);
+        float v = f * Vector3.Dot(ray.direction, q);
+
+        if (v < 0.0 || u + v > 1.0)
+            return false;
+
+        float t = f * Vector3.Dot(e2, q);
+        if (t > Mathf.Epsilon)
+        {
+            intersectPoint = ray.origin + ray.direction * t;
+            return true;
+        }
+
+        return false;
+    }
+
+    private void SubdivideSingleTriangle(int triangleIndex, Vector3 localPoint)
+    {
+        TriangleData data = triangleDataList[triangleIndex];
+        if (!data.canSubdivide || data.subdivisionLevel >= maxSubdivisionLevel)
+            return;
+
+        if (logSubdividedTriangles)
+        {
+            Debug.Log($"Subdividing triangle {triangleIndex} at position {localPoint}");
+        }
+
+        SubdivideSelectedTriangles(new List<int> { triangleIndex });
+        BuildInfluenceMapping();
+
     }
 
     public void HandleCollisionPoints(List<Vector3> collisionPoints)
@@ -64,9 +164,8 @@ public class MeshDeformer : MonoBehaviour
             FindAndSubdivideAffectedTriangles(localPoint);
         }
 
-        workingMesh.vertices = currentVertices;
-        workingMesh.RecalculateNormals();
-        workingMesh.RecalculateBounds();
+        
+        NotifyMeshChanged();
     }
 
     private void FindAndSubdivideAffectedTriangles(Vector3 localPoint)
@@ -142,10 +241,6 @@ public class MeshDeformer : MonoBehaviour
                 int m12 = GetMidpoint(i1, i2, oldVertices, newVertices, edgeMidpoints);
                 int m20 = GetMidpoint(i2, i0, oldVertices, newVertices, edgeMidpoints);
 
-                // Store new triangle indices for logging
-                List<int> newTriangleIndices = new List<int>();
-                int baseIndex = newTriangles.Count / 3;
-
                 newTriangles.AddRange(new[] { i0, m01, m20 });
                 newTriangles.AddRange(new[] { m01, i1, m12 });
                 newTriangles.AddRange(new[] { m20, m12, i2 });
@@ -153,8 +248,7 @@ public class MeshDeformer : MonoBehaviour
 
                 if (logSubdividedTriangles)
                 {
-                    Debug.Log($"Subdivided triangle {originalTriangleIndex} into new triangles at indices: " +
-                             $"{baseIndex}, {baseIndex + 1}, {baseIndex + 2}, {baseIndex + 3}");
+                    Debug.Log($"Subdivided triangle {originalTriangleIndex} into 4 new triangles");
                 }
 
                 for (int j = 0; j < 4; j++)
@@ -178,10 +272,13 @@ public class MeshDeformer : MonoBehaviour
             }
         }
 
+        workingMesh.Clear();
         workingMesh.vertices = newVertices.ToArray();
         workingMesh.triangles = newTriangles.ToArray();
-        workingMesh.RecalculateNormals();
-        workingMesh.RecalculateBounds();
+
+        
+        NotifyMeshChanged();
+
 
         triangleDataList = newTriangleData;
         baseVertices = workingMesh.vertices;
@@ -228,7 +325,6 @@ public class MeshDeformer : MonoBehaviour
             foreach (var inf in vertexInfluences[i])
             {
                 Vector3 displacement = inf.springPoint.position - inf.springPoint.initialPosition;
-
                 newPos += displacement * inf.weight;
                 totalWeight += inf.weight;
             }
@@ -238,10 +334,18 @@ public class MeshDeformer : MonoBehaviour
                 baseVertices[i];
         }
 
-        workingMesh.vertices = currentVertices;
-        workingMesh.RecalculateNormals();
-        workingMesh.RecalculateBounds();
+        
+        NotifyMeshChanged();
     }
+    public void NotifyMeshChanged()
+    {
+        if (springFiller != null)
+        {
+           
+        }
+    }
+
+  
 
     private struct Edge
     {
@@ -259,10 +363,8 @@ public class MeshDeformer : MonoBehaviour
         int newIndex = newVerts.Count - 1;
         midpoints.Add(edge, newIndex);
 
-        // Create spring point at the new vertex position (in world space)
         Vector3 worldPos = transform.TransformPoint(mid);
-        CreateSpringPoint(worldPos);
-        springFiller.CreateSpringConnections();
+        springFiller.AddSpringPointAtPosition(worldPos);
 
         return newIndex;
     }
@@ -287,15 +389,6 @@ public class MeshDeformer : MonoBehaviour
         public SpringPoint springPoint;
         public float weight;
     }
-    void CreateSpringPoint(Vector3 worldPos)
-    {
-        SpringPoint point = new SpringPoint(worldPos);
 
-        point.mass = 1.0f;
-        point.radius = 0.1f;
-        GameObject obj = Instantiate(springFiller.springPointPrefab, worldPos, Quaternion.identity);
-        springFiller.objects.Add(obj);
-        obj.name = $"Point_{worldPos.x}_{worldPos.y}_{worldPos.z}";
-        Debug.Log(point);
-    }
+    
 }

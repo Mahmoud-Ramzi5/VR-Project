@@ -119,46 +119,54 @@ public class SpringJobManager : MonoBehaviour
     struct CalculateForcesJob : IJobParallelFor
     {
         public NativeParallelMultiHashMap<int, float3>.ParallelWriter forceMap;
-
         [ReadOnly] public NativeArray<float3> velocities;
         [ReadOnly] public NativeArray<float3> positions;
-
         [ReadOnly] public NativeArray<int2> connections;
         [ReadOnly] public NativeArray<float> restLengths;
-
         [ReadOnly] public float springConstant;
         [ReadOnly] public float damperConstant;
 
+        // (2) Non-linear spring parameters
+        [ReadOnly] public bool useNonLinear;
+        [ReadOnly] public float nonLinearFactor;
 
-        public void Execute(int connectionIndex)
+        public void Execute(int i)
         {
-            int2 points = connections[connectionIndex];
-            float3 position1 = positions[points.x];
-            float3 position2 = positions[points.y];
-
-            float3 direction = position2 - position1;
-            float distance = math.length(direction);
-            if (distance > 0)
+            int2 pts = connections[i];
+            float3 p1 = positions[pts.x];
+            float3 p2 = positions[pts.y];
+            float3 dir = p2 - p1;
+            float dist = math.length(dir);
+            if (dist > 0f)
             {
-                direction = direction / distance;
-                // Calculate spring force using Hooke's Law
-                float stretch = distance - restLengths[connectionIndex];
-                float3 springForce = springConstant * stretch * direction;
+                dir /= dist;
+                float stretch = dist - restLengths[i];
 
-                // Apply damping to prevent sliding at higher speeds
-                float3 relativeVel = velocities[points.y] - velocities[points.x];
-                float velocityAlongSpring = math.dot(relativeVel, direction);
-                float3 dampingForce = damperConstant * velocityAlongSpring * direction;
+                float3 springForce;
+                if (useNonLinear)
+                {
+                    // Increase force for larger stretch (stiffening)
+                    float scale = 1f + math.abs(stretch) / restLengths[i] * (nonLinearFactor - 1f);
+                    springForce = springConstant * stretch * scale * dir;
+                }
+                else
+                {
+                    // Linear Hooke's law: F = k * x:contentReference[oaicite:0]{index=0}
+                    springForce = springConstant * stretch * dir;
+                }
 
-                // Combine forces
+                // Damping (viscous)
+                float3 relVel = velocities[pts.y] - velocities[pts.x];
+                float velAlong = math.dot(relVel, dir);
+                float3 dampingForce = damperConstant * velAlong * dir;
+
                 float3 netForce = springForce + dampingForce;
-
-                // Add forces to the map
-                forceMap.Add(points.x, netForce);
-                forceMap.Add(points.y, -netForce);
+                forceMap.Add(pts.x, netForce);
+                forceMap.Add(pts.y, -netForce);
             }
         }
     }
+
 
     [BurstCompile]
     struct AccumulateForcesJob : IJobParallelFor
@@ -232,6 +240,10 @@ public class SpringJobManager : MonoBehaviour
 
             springConstant = springConstant,
             damperConstant = damperConstant,
+
+            // Pass non-linear parameters from simulation
+            useNonLinear = parentSystem.useNonLinearSprings,
+            nonLinearFactor = parentSystem.nonLinearFactor
         };
 
         var accumulateJob = new AccumulateForcesJob

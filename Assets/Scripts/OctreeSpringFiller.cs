@@ -39,6 +39,18 @@ public class OctreeSpringFiller : MonoBehaviour
     public float groundFriction = 0.8f; // Friction (0 = full stop, 1 = no friction)
     public bool applyGroundCollision = true;
 
+    [Header("Spring Model")]
+    public bool useNonLinearSprings = false;
+    public float nonLinearFactor = 1f; // Factor (>1) increases force on large stretch
+
+    [Header("Shape Memory")]
+    public bool enableShapeMemory = false;
+    public float shapeMemoryStrength = 0.1f; // Rate at which shape returns
+
+    [Header("Volume Preservation")]
+    public bool enableVolumePreservation = false;
+    public float volumePreservationStrength = 1f; // Strength of volume-restoring force
+
     // Lists
     private List<Vector3> allPointPositions = new List<Vector3>();
     public List<SpringPoint> allSpringPoints = new List<SpringPoint>();
@@ -51,6 +63,10 @@ public class OctreeSpringFiller : MonoBehaviour
     // Debug
     public List<GameObject> objects = new List<GameObject>();
     private LineRenderer lineRenderer;
+
+    // Store initial center and average radius for volume/shape reference
+    private Vector3 initialCenter;
+    private float initialAvgDist;
 
     private void Awake()
     {
@@ -97,6 +113,22 @@ public class OctreeSpringFiller : MonoBehaviour
 
         // Initial connection data setup
         jobManager.UpdateConnectionData(allSpringConnections);
+
+        // Compute initial center and average distance for volume/shape memory
+        Vector3 center = Vector3.zero;
+        foreach (var point in allSpringPoints)
+        {
+            center += point.position;
+        }
+        center /= allSpringPoints.Count;
+        initialCenter = center;
+
+        float sumDist = 0f;
+        foreach (var point in allSpringPoints)
+        {
+            sumDist += Vector3.Distance(point.position, center);
+        }
+        initialAvgDist = (allSpringPoints.Count > 0) ? sumDist / allSpringPoints.Count : 0f;
 
     }
 
@@ -155,6 +187,38 @@ public class OctreeSpringFiller : MonoBehaviour
             foreach (var point in allSpringPoints)
             {
                 HandleGroundCollision(point);
+            }
+        }
+
+        //VOLUME PRESERVATION – Resist overall shrink/expansion
+        if (enableVolumePreservation)
+        {
+            Vector3 currentCenter = transform.position; // current average
+            float sum = 0f;
+            foreach (var point in allSpringPoints)
+            {
+                sum += Vector3.Distance(point.position, currentCenter);
+            }
+            float currentAvgDist = (allSpringPoints.Count > 0) ? sum / allSpringPoints.Count : 0f;
+            float diff = initialAvgDist - currentAvgDist;
+            foreach (var point in allSpringPoints)
+            {
+                // Apply a radial force proportional to the volume change
+                Vector3 dir = (point.position - currentCenter).normalized;
+                point.force += dir * diff * volumePreservationStrength;
+            }
+        }
+
+        //SHAPE MEMORY – Pull points toward original rest positions
+        if (enableShapeMemory)
+        {
+            Vector3 currentCenter = transform.position; // current average
+            foreach (var point in allSpringPoints)
+            {
+                // Compute each point's target position relative to center
+                Vector3 offset = point.initialPosition - initialCenter;
+                Vector3 targetPos = currentCenter + offset;
+                point.force += (targetPos - point.position) * shapeMemoryStrength;
             }
         }
 

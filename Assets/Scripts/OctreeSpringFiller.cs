@@ -17,10 +17,22 @@ public class OctreeSpringFiller : MonoBehaviour
     public bool isSolid = true;
 
     [Header("Spring Settings")]
-    public float springConstant = 10f;
-    public float damperConstant = 0.5f;
-    public float connectionRadius = 2f;
-    public float maxRestLength = 3f;
+    [Header("Spring Settings / Layer 1")]
+    public float springConstantL1 = 100f;
+    public float damperConstantL1 = 0.6f;
+    public float connectionRadiusL1 = 1f;
+    public float maxRestLengthL1 = 2f;
+    [Header("Spring Settings / Layer 2")]
+    public float springConstantL2 = 60f;
+    public float damperConstantL2 = 0.5f;
+    public float connectionRadiusL2 = 2f;
+    public float maxRestLengthL2 = 2.5f;
+    [Header("Spring Settings / Layer 3")]
+    public float springConstantL3 = 40f;
+    public float damperConstantL3 = 0.4f;
+    public float connectionRadiusL3 = 3f;
+    public float maxRestLengthL3 = 3f;
+
 
     [Header("Mesh Settings")]
     public float totalMass = 100f;
@@ -130,7 +142,8 @@ public class OctreeSpringFiller : MonoBehaviour
         jobManager.ScheduleGravityJobs(gravity, applyGravity);
 
         // 2. Schedule spring jobs
-        jobManager.ScheduleSpringJobs(springConstant, damperConstant);
+        jobManager.ScheduleSpringJobs();
+        //jobManager.ScheduleSpringJobs(springConstant, damperConstant);
 
         // 3. Complete all jobs and apply results
         jobManager.CompleteAllJobsAndApply();
@@ -332,7 +345,10 @@ public class OctreeSpringFiller : MonoBehaviour
             }
             else
             {
-                FillNodeWithSpringPoints(node);
+                if (isSolid)
+                {
+                    FillNodeWithSpringPoints(node);
+                }
             }
         }
 
@@ -522,14 +538,32 @@ public class OctreeSpringFiller : MonoBehaviour
                 float distance = Vector3.Distance(currentPoint.position, otherPoint.position);
 
                 // Connect if within radius and not already connected
-                if (distance <= connectionRadius * PointSpacing && !IsConnected(currentPoint, otherPoint))
+                if (distance <= connectionRadiusL1 * PointSpacing && !IsConnected(currentPoint, otherPoint))
                 {
                     // Clamp rest length to reasonable values
-                    float restLength = Mathf.Clamp(distance, 0.5f, maxRestLength);
+                    float restLength = Mathf.Clamp(distance, 0.5f, maxRestLengthL1);
 
-                    SpringConnection c = new SpringConnection(currentPoint, otherPoint, restLength, springConstant, damperConstant);
+                    SpringConnection c = new SpringConnection(currentPoint, otherPoint, restLength, springConstantL1, damperConstantL1);
                     allSpringConnections.Add(c);
                 }
+                else if (distance <= connectionRadiusL2 * PointSpacing && !IsConnected(currentPoint, otherPoint))
+                {
+                    // Clamp rest length to reasonable values
+                    float restLength = Mathf.Clamp(distance, 0.5f, maxRestLengthL2);
+
+                    SpringConnection c = new SpringConnection(currentPoint, otherPoint, restLength, springConstantL2, damperConstantL2);
+                    allSpringConnections.Add(c);
+                }
+                else if (distance <= connectionRadiusL3 * PointSpacing && !IsConnected(currentPoint, otherPoint))
+                {
+                    // Clamp rest length to reasonable values
+                    float restLength = Mathf.Clamp(distance, 0.5f, maxRestLengthL3);
+
+                    SpringConnection c = new SpringConnection(currentPoint, otherPoint, restLength, springConstantL3, damperConstantL3);
+                    allSpringConnections.Add(c);
+                }
+                else { }
+
             }
         }
     }

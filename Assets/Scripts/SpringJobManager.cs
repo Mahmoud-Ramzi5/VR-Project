@@ -15,6 +15,8 @@ public class SpringJobManager : MonoBehaviour
     private NativeArray<float3> positions;
 
     private NativeArray<int2> connections;
+    private NativeArray<float> springConstants;
+    private NativeArray<float> damperConstants;
     private NativeArray<float> restLengths;
 
     private NativeArray<float> masses;
@@ -39,6 +41,8 @@ public class SpringJobManager : MonoBehaviour
         positions = new NativeArray<float3>(pointCount, Allocator.Persistent);
 
         connections = new NativeArray<int2>(connectionCount, Allocator.Persistent);
+        springConstants = new NativeArray<float>(connectionCount, Allocator.Persistent);
+        damperConstants = new NativeArray<float>(connectionCount, Allocator.Persistent);
         restLengths = new NativeArray<float>(connectionCount, Allocator.Persistent);
 
         masses = new NativeArray<float>(pointCount, Allocator.Persistent);
@@ -85,11 +89,9 @@ public class SpringJobManager : MonoBehaviour
         [ReadOnly] public NativeArray<float3> positions;
 
         [ReadOnly] public NativeArray<int2> connections;
+        [ReadOnly] public NativeArray<float> springConstants;
+        [ReadOnly] public NativeArray<float> damperConstants;
         [ReadOnly] public NativeArray<float> restLengths;
-
-        [ReadOnly] public float springConstant;
-        [ReadOnly] public float damperConstant;
-
 
         public void Execute(int connectionIndex)
         {
@@ -104,12 +106,12 @@ public class SpringJobManager : MonoBehaviour
                 direction = direction / distance;
                 // Calculate spring force using Hooke's Law
                 float stretch = distance - restLengths[connectionIndex];
-                float3 springForce = springConstant * stretch * direction;
+                float3 springForce = springConstants[connectionIndex] * stretch * direction;
 
                 // Apply damping to prevent sliding at higher speeds
                 float3 relativeVel = velocities[points.y] - velocities[points.x];
                 float velocityAlongSpring = math.dot(relativeVel, direction);
-                float3 dampingForce = damperConstant * velocityAlongSpring * direction;
+                float3 dampingForce = damperConstants[connectionIndex] * velocityAlongSpring * direction;
 
                 // Combine forces
                 float3 netForce = springForce + dampingForce;
@@ -160,7 +162,7 @@ public class SpringJobManager : MonoBehaviour
         gravityJobHandle = gravityJob.Schedule(masses.Length, 64);
     }
 
-    public void ScheduleSpringJobs(float springConstant, float damperConstant)
+    public void ScheduleSpringJobs()
     {
         // Clear the force buffer by setting each element to zero
         var currentForceBuffer = usingBufferA ? forcesBufferA : forcesBufferB;
@@ -189,8 +191,8 @@ public class SpringJobManager : MonoBehaviour
             connections = connections,
             restLengths = restLengths,
 
-            springConstant = springConstant,
-            damperConstant = damperConstant,
+            springConstants = springConstants,
+            damperConstants = damperConstants,
         };
 
         var accumulateJob = new AccumulateForcesJob
@@ -238,6 +240,8 @@ public class SpringJobManager : MonoBehaviour
             int index1 = parentSystem.allSpringPoints.IndexOf(connections[i].point1);
             int index2 = parentSystem.allSpringPoints.IndexOf(connections[i].point2);
             this.connections[i] = new int2(index1, index2);
+            springConstants[i] = connections[i].springConstant;
+            damperConstants[i] = connections[i].damperConstant;
             restLengths[i] = connections[i].restLength;
         }
     }

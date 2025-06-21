@@ -156,10 +156,18 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
-  springConstant: 100
-  damperConstant: 0.6
-  connectionRadius: 2
-  maxRestLength: 3
+  springConstantL1: 200
+  damperConstantL1: 2
+  connectionRadiusL1: 1
+  maxRestLengthL1: 2
+  springConstantL2: 120
+  damperConstantL2: 1
+  connectionRadiusL2: 2
+  maxRestLengthL2: 2.5
+  springConstantL3: 80
+  damperConstantL3: 0.5
+  connectionRadiusL3: 3
+  maxRestLengthL3: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
@@ -355,13 +363,21 @@ MonoBehaviour:
   springPointPrefab: {fileID: 7349107700272415433, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
   visualizeSpringPoints: 1
   visualizeSpringConnections: 1
-  minNodeSize: 0.5
-  PointSpacing: 0.5
+  minNodeSize: 1
+  PointSpacing: 1
   isSolid: 1
-  springConstant: 100
-  damperConstant: 0.6
-  connectionRadius: 2
-  maxRestLength: 2
+  springConstantL1: 100
+  damperConstantL1: 0.6
+  connectionRadiusL1: 1
+  maxRestLengthL1: 2
+  springConstantL2: 60
+  damperConstantL2: 0.5
+  connectionRadiusL2: 2
+  maxRestLengthL2: 2.5
+  springConstantL3: 40
+  damperConstantL3: 0.4
+  connectionRadiusL3: 3
+  maxRestLengthL3: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
@@ -595,10 +611,18 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
-  springConstant: 100
-  damperConstant: 0.6
-  connectionRadius: 2
-  maxRestLength: 3
+  springConstantL1: 100
+  damperConstantL1: 0.6
+  connectionRadiusL1: 1
+  maxRestLengthL1: 2
+  springConstantL2: 60
+  damperConstantL2: 0.5
+  connectionRadiusL2: 2
+  maxRestLengthL2: 2.5
+  springConstantL3: 40
+  damperConstantL3: 0.4
+  connectionRadiusL3: 3
+  maxRestLengthL3: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
@@ -736,7 +760,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &806052909
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -750,15 +774,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   springPointPrefab: {fileID: 7349107700272415433, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
-  visualizeSpringPoints: 1
-  visualizeSpringConnections: 1
+  visualizeSpringPoints: 0
+  visualizeSpringConnections: 0
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
-  springConstant: 100
-  damperConstant: 0.6
-  connectionRadius: 2
-  maxRestLength: 3
+  springConstantL1: 100
+  damperConstantL1: 0.6
+  connectionRadiusL1: 1
+  maxRestLengthL1: 2
+  springConstantL2: 60
+  damperConstantL2: 0.5
+  connectionRadiusL2: 2
+  maxRestLengthL2: 2.5
+  springConstantL3: 40
+  damperConstantL3: 0.4
+  connectionRadiusL3: 3
+  maxRestLengthL3: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
@@ -871,10 +903,18 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
-  springConstant: 100
-  damperConstant: 0.6
-  connectionRadius: 2
-  maxRestLength: 3
+  springConstantL1: 100
+  damperConstantL1: 0.6
+  connectionRadiusL1: 1
+  maxRestLengthL1: 2
+  springConstantL2: 60
+  damperConstantL2: 0.5
+  connectionRadiusL2: 2
+  maxRestLengthL2: 2.5
+  springConstantL3: 40
+  damperConstantL3: 0.4
+  connectionRadiusL3: 3
+  maxRestLengthL3: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
@@ -968,7 +1008,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!23 &961952773
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1055,10 +1095,18 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
-  springConstant: 100
-  damperConstant: 0.6
-  connectionRadius: 2
-  maxRestLength: 3
+  springConstantL1: 120
+  damperConstantL1: 0.6
+  connectionRadiusL1: 1
+  maxRestLengthL1: 2
+  springConstantL2: 80
+  damperConstantL2: 0.5
+  connectionRadiusL2: 2
+  maxRestLengthL2: 2.5
+  springConstantL3: 40
+  damperConstantL3: 0.4
+  connectionRadiusL3: 3
+  maxRestLengthL3: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
@@ -1256,10 +1304,18 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
-  springConstant: 100
-  damperConstant: 0.6
-  connectionRadius: 2
-  maxRestLength: 3
+  springConstantL1: 100
+  damperConstantL1: 0.6
+  connectionRadiusL1: 1
+  maxRestLengthL1: 2
+  springConstantL2: 60
+  damperConstantL2: 0.5
+  connectionRadiusL2: 2
+  maxRestLengthL2: 2.5
+  springConstantL3: 40
+  damperConstantL3: 0.4
+  connectionRadiusL3: 3
+  maxRestLengthL3: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0
@@ -1369,13 +1425,21 @@ MonoBehaviour:
   springPointPrefab: {fileID: 7349107700272415433, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
   visualizeSpringPoints: 1
   visualizeSpringConnections: 1
-  minNodeSize: 0.5
-  PointSpacing: 0.5
+  minNodeSize: 1
+  PointSpacing: 1
   isSolid: 1
-  springConstant: 100
-  damperConstant: 0.6
-  connectionRadius: 2
-  maxRestLength: 2
+  springConstantL1: 100
+  damperConstantL1: 0.6
+  connectionRadiusL1: 1
+  maxRestLengthL1: 2
+  springConstantL2: 60
+  damperConstantL2: 0.5
+  connectionRadiusL2: 2
+  maxRestLengthL2: 2.5
+  springConstantL3: 40
+  damperConstantL3: 0.4
+  connectionRadiusL3: 3
+  maxRestLengthL3: 3
   totalMass: 100
   applyGravity: 1
   groundLevel: 0

@@ -17,6 +17,36 @@ public class SpringConnection
         this.damperConstant = damperConstant;
     }
 
+    public void EnforceRigidConstraint()
+    {
+        if (point1 == null || point2 == null || point1 == point2)
+            return;
+
+        Vector3 direction = point2.predictedPosition - point1.predictedPosition;
+        float distance = direction.magnitude;
+
+        if (distance == 0 || float.IsNaN(distance)) return;
+
+        float stretch = distance - restLength;
+        Vector3 correction = direction.normalized * (stretch * 0.5f);
+
+        // Fixed point support
+        if (!point1.isFixed && !point2.isFixed)
+        {
+            point1.predictedPosition += correction;
+            point2.predictedPosition -= correction;
+        }
+        else if (!point1.isFixed)
+        {
+            point1.predictedPosition += correction * 2f;
+        }
+        else if (!point2.isFixed)
+        {
+            point2.predictedPosition -= correction * 2f;
+        }
+    }
+
+
     // this no longer being called 
     // the logic has been moved to Jobs
     public void CalculateAndApplyForces()
@@ -60,6 +90,7 @@ public class SpringPoint
     public Vector3 position;
     public bool isFixed = false;
     public Vector3 initialPosition;
+    public Vector3 predictedPosition;
 
     [Header("Collision")]
     public float bounciness = 0.2f;

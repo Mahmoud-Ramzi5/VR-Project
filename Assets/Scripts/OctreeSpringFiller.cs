@@ -15,6 +15,7 @@ public class OctreeSpringFiller : MonoBehaviour
     public float minNodeSize = 0.5f;
     public float PointSpacing = 0.5f;
     public bool isSolid = true;
+    public bool isRigid = true;
 
     [Header("Spring Settings")]
     [Header("Spring Settings / Layer 1")]
@@ -58,7 +59,8 @@ public class OctreeSpringFiller : MonoBehaviour
 
 
     // Jobs
-    private SpringJobManager jobManager;
+    private SpringJobManager springJobManager;
+    private RigidJobManager rigidJobManager;
 
     // Debug
     public List<GameObject> objects = new List<GameObject>();
@@ -104,11 +106,16 @@ public class OctreeSpringFiller : MonoBehaviour
 
         // Use Jobs to calculate physics on GPU threads
         // Parallelizing calculations improves performance
-        jobManager = gameObject.AddComponent<SpringJobManager>();
-        jobManager.InitializeArrays(this, allSpringPoints.Count, allSpringConnections.Count);
 
-        // Initial connection data setup
-        jobManager.UpdateConnectionData(allSpringConnections);
+        // Spring
+        springJobManager = gameObject.AddComponent<SpringJobManager>();
+        springJobManager.InitializeArrays(this, allSpringPoints.Count, allSpringConnections.Count);
+        springJobManager.UpdateConnectionData(allSpringConnections);
+
+        // Rigid
+        rigidJobManager = gameObject.AddComponent<RigidJobManager>();
+        rigidJobManager.InitializeArrays(this, allSpringPoints.Count, allSpringConnections.Count);
+        rigidJobManager.UpdateConnectionData(allSpringConnections);
 
     }
 
@@ -138,31 +145,98 @@ public class OctreeSpringFiller : MonoBehaviour
 
     void FixedUpdate()
     {
-        // 1. Schedule gravity job
-        jobManager.ScheduleGravityJobs(gravity, applyGravity);
+        float deltaTime = Time.fixedDeltaTime;
 
-        // 2. Schedule spring jobs
-        jobManager.ScheduleSpringJobs();
-        //jobManager.ScheduleSpringJobs(springConstant, damperConstant);
+        if (isRigid)
+        {
+            // ----- RIGID MODE -----
+            //// 1. Schedule gravity job
+            //rigidJobManager.ScheduleGravityJobs(gravity, applyGravity);
 
-        // 3. Complete all jobs and apply results
-        jobManager.CompleteAllJobsAndApply();
+            //// 2. Schedule spring jobs
+            //rigidJobManager.ScheduleRigidJobs(deltaTime);
 
-        //// Update springs
-        //// This was moved to Jobs
-        //foreach (var connection in allSpringConnections)
-        //{
-        //    connection.CalculateAndApplyForces();
-        //}
+            //// 3. Complete all jobs and apply results
+            //rigidJobManager.CompleteAllJobsAndApply(deltaTime);
 
-        // 4. Update mesh (consider throttling this)
-        //if (Time.frameCount % 3 == 0) // Update mesh every 3 physics frames
-        //{
-            // Update mesh to follow points
-            UpdateMeshFromPoints();
-        //}
+            // 1. Initialize predicted positions
+            foreach (var point in allSpringPoints)
+            {
+                point.predictedPosition = point.position;
+                point.force = Vector3.zero; // Clear forces
+            }
 
-        // 5. Handle collisions
+            // 2. Apply gravity and other forces directly (skip jobs for rigid mode)
+            if (applyGravity)
+            {
+                foreach (var point in allSpringPoints)
+                {
+                    if (!point.isFixed)
+                        point.force += gravity * point.mass;
+                }
+            }
+
+            // 3. Apply spring forces as rigid constraints (not as forces)
+            // (We don't use ScheduleSpringOrRigidJobs in rigid mode)
+
+            // 4. Integrate forces to get predicted positions
+            foreach (var point in allSpringPoints)
+            {
+                if (!point.isFixed)
+                {
+                    Vector3 acceleration = point.force / point.mass;
+                    point.velocity += acceleration * deltaTime;
+                    point.predictedPosition = point.position + point.velocity * deltaTime;
+                }
+            }
+
+            // 5. Solve constraints (multiple iterations)
+            for (int i = 0; i < 1; i++)
+            {
+                foreach (var connection in allSpringConnections)
+                {
+                    connection.EnforceRigidConstraint();
+                }
+            }
+
+            // 6. Update velocities and positions
+            foreach (var point in allSpringPoints)
+            {
+                if (!point.isFixed)
+                {
+                    point.velocity = (point.predictedPosition - point.position) / deltaTime;
+                    point.position = point.predictedPosition;
+                }
+            }
+        }
+        else
+        {
+            // ----- SOFT BODY MODE -----
+            // 1. Schedule gravity job
+            springJobManager.ScheduleGravityJobs(gravity, applyGravity);
+
+            // 2. Schedule spring jobs
+            springJobManager.ScheduleSpringJobs(deltaTime);
+
+            // 3. Complete all jobs and apply results
+            springJobManager.CompleteAllJobsAndApply(deltaTime);
+
+            // This next section was moved to Jobs
+
+            //// Update springs
+            //foreach (var connection in allSpringConnections)
+            //{
+            //    connection.CalculateAndApplyForces();
+            //}
+            //// Update points normally
+            //foreach (var point in allSpringPoints)
+            //{
+            //    point.UpdatePoint(deltaTime);
+            //}
+        }
+
+        // ----- COMMON OPERATIONS -----
+        // Handle collisions
         if (applyGroundCollision)
         {
             foreach (var point in allSpringPoints)
@@ -171,12 +245,12 @@ public class OctreeSpringFiller : MonoBehaviour
             }
         }
 
-        // Update points
-        foreach (var point in allSpringPoints)
-        {
-            point.UpdatePoint(Time.fixedDeltaTime);
-        }
-
+        // Update mesh (consider throttling this)
+        //if (Time.frameCount % 3 == 0) // Update mesh every 3 physics frames
+        //{
+            // Update mesh to follow points
+            UpdateMeshFromPoints();
+        //}
 
         // Update Visualization
         UpdatePointsVisualization();
@@ -186,9 +260,14 @@ public class OctreeSpringFiller : MonoBehaviour
     // Call this when connections change
     public void UpdateConnections()
     {
-        if (jobManager != null)
+        if (springJobManager != null)
         {
-            jobManager.UpdateConnectionData(allSpringConnections);
+            springJobManager.UpdateConnectionData(allSpringConnections);
+        }
+
+        if (rigidJobManager != null)
+        {
+            rigidJobManager.UpdateConnectionData(allSpringConnections);
         }
     }
 

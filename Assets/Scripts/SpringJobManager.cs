@@ -16,6 +16,7 @@ public class SpringJobManager : MonoBehaviour
 
     private NativeArray<int2> connections;
     private NativeArray<float> restLengths;
+    private NativeArray<float> springConstants;
 
     private NativeArray<float> masses;
 
@@ -42,6 +43,7 @@ public class SpringJobManager : MonoBehaviour
 
         connections = new NativeArray<int2>(connectionCount, Allocator.Persistent);
         restLengths = new NativeArray<float>(connectionCount, Allocator.Persistent);
+        springConstants = new NativeArray<float>(connectionCount, Allocator.Persistent);
 
         masses = new NativeArray<float>(pointCount, Allocator.Persistent);
         for (int i = 0; i < parent.allSpringPoints.Count; i++)
@@ -76,6 +78,7 @@ public class SpringJobManager : MonoBehaviour
 
             connections = new NativeArray<int2>(newConnectionCount, Allocator.Persistent);
             restLengths = new NativeArray<float>(newConnectionCount, Allocator.Persistent);
+            springConstants = new NativeArray<float>(newConnectionCount, Allocator.Persistent);
 
             forcesBufferA = new NativeArray<float3>(newPointCount, Allocator.Persistent);
             forcesBufferB = new NativeArray<float3>(newPointCount, Allocator.Persistent);
@@ -125,6 +128,7 @@ public class SpringJobManager : MonoBehaviour
 
         [ReadOnly] public NativeArray<int2> connections;
         [ReadOnly] public NativeArray<float> restLengths;
+        [ReadOnly] public NativeArray<float> springConstants;
 
         [ReadOnly] public float springConstant;
         [ReadOnly] public float damperConstant;
@@ -143,7 +147,9 @@ public class SpringJobManager : MonoBehaviour
                 direction = direction / distance;
                 // Calculate spring force using Hooke's Law
                 float stretch = distance - restLengths[connectionIndex];
-                float3 springForce = springConstant * stretch * direction;
+                float k = springConstants[connectionIndex];
+            
+                float3 springForce = k * stretch * direction;
 
                 // Apply damping to prevent sliding at higher speeds
                 float3 relativeVel = velocities[points.y] - velocities[points.x];
@@ -200,7 +206,7 @@ public class SpringJobManager : MonoBehaviour
         gravityJobHandle = gravityJob.Schedule(masses.Length, 64);
     }
 
-    public void ScheduleSpringJobs(float springConstant, float damperConstant)
+    public void ScheduleSpringJobs(float damperConstant)
     {
         CheckAndResizeArrays(parentSystem.allSpringPoints.Count, parentSystem.allSpringConnections.Count);
         // Clear the force buffer by setting each element to zero
@@ -230,7 +236,7 @@ public class SpringJobManager : MonoBehaviour
             connections = connections,
             restLengths = restLengths,
 
-            springConstant = springConstant,
+            springConstants = this.springConstants,
             damperConstant = damperConstant,
         };
 
@@ -281,6 +287,7 @@ public class SpringJobManager : MonoBehaviour
             int index2 = parentSystem.allSpringPoints.IndexOf(connections[i].point2);
             this.connections[i] = new int2(index1, index2);
             restLengths[i] = connections[i].restLength;
+            springConstants[i] = connections[i].springConstant;
         }
     }
 
@@ -297,5 +304,6 @@ public class SpringJobManager : MonoBehaviour
 
         if (forcesBufferA.IsCreated) forcesBufferA.Dispose();
         if (forcesBufferB.IsCreated) forcesBufferB.Dispose();
+        if (springConstants.IsCreated) springConstants.Dispose();
     }
 }

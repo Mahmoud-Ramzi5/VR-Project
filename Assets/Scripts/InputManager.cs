@@ -22,6 +22,10 @@ public class InputManager : MonoBehaviour
         {
             selectedObject = null;
         }
+        if (Input.GetMouseButtonDown(0))
+        {
+            OnClick();
+        }
     }
 
     void OnClick()

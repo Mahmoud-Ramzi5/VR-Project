@@ -5,7 +5,7 @@ public class DeformTest : MonoBehaviour
 {
     [SerializeField] private GameObject cube;
     private List<SpringPoint> allSpringPoints;
-    [SerializeField] private MeshDeformer deformer;
+   // [SerializeField] private MeshDeformer deformer;
     private List<Vector3> pointPositions;
     void Start()
     {
@@ -20,6 +20,6 @@ public class DeformTest : MonoBehaviour
         foreach (var point in allSpringPoints) {
             pointPositions.Add(point.position);
         }
-        deformer.HandleCollisionPoints(pointPositions);
+   //     deformer.HandleCollisionPoints(pointPositions);
     }
 }

@@ -130,7 +130,7 @@ public class OctreeSpringFiller : MonoBehaviour
         jobManager.ScheduleGravityJobs(gravity, applyGravity);
 
         // 2. Schedule spring jobs
-        jobManager.ScheduleSpringJobs(springConstant, damperConstant);
+        jobManager.ScheduleSpringJobs(damperConstant);  
 
         // 3. Complete all jobs and apply results
         jobManager.CompleteAllJobsAndApply();
@@ -458,7 +458,17 @@ public class OctreeSpringFiller : MonoBehaviour
             if (dist <= connectionRadius * PointSpacing && !IsConnected(newPoint, other))
             {
                 float restLength = Mathf.Clamp(dist, 0.5f, maxRestLength);
-                SpringConnection conn = new SpringConnection(newPoint, other, restLength, springConstant, damperConstant);
+
+                // Calculate spring constant based on distance
+                float k = springConstant * (10f / dist);
+
+                SpringConnection conn = new SpringConnection(
+                    newPoint,
+                    other,
+                    restLength,
+                    k,  // Per-connection spring constant
+                    damperConstant
+                );
                 allSpringConnections.Add(conn);
             }
         }
@@ -485,7 +495,7 @@ public class OctreeSpringFiller : MonoBehaviour
 
         SetConnectionsVisualization();
     }
-    private void UpdateMeshDataWithNewPoint(Vector3 newWorldPosition)
+    private void  UpdateMeshDataWithNewPoint(Vector3 newWorldPosition)
     {
         // Convert to local space
         Vector3 newLocalPosition = transform.InverseTransformPoint(newWorldPosition);
@@ -577,8 +587,9 @@ public class OctreeSpringFiller : MonoBehaviour
                 {
                     // Clamp rest length to reasonable values
                     float restLength = Mathf.Clamp(distance, 0.5f, maxRestLength);
+                    float k = springConstant * (10f / distance);
 
-                    SpringConnection c = new SpringConnection(currentPoint, otherPoint, restLength, springConstant, damperConstant);
+                    SpringConnection c = new SpringConnection(currentPoint, otherPoint, restLength, k, damperConstant);
                     allSpringConnections.Add(c);
                 }
             }

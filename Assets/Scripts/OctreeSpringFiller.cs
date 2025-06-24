@@ -1,8 +1,9 @@
-using UnityEngine;
-using Unity.Collections;
-using Unity.Mathematics;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Collections;
+using Unity.Mathematics;
+using UnityEngine;
+using UnityEngine.UIElements;
 
 
 public class OctreeSpringFiller : MonoBehaviour
@@ -150,64 +151,64 @@ public class OctreeSpringFiller : MonoBehaviour
         if (isRigid)
         {
             // ----- RIGID MODE -----
-            //// 1. Schedule gravity job
-            //rigidJobManager.ScheduleGravityJobs(gravity, applyGravity);
+            // 1. Schedule gravity job
+            rigidJobManager.ScheduleGravityJobs(gravity, applyGravity);
 
-            //// 2. Schedule spring jobs
-            //rigidJobManager.ScheduleRigidJobs(deltaTime);
+            // 2. Schedule spring jobs
+            rigidJobManager.ScheduleRigidJobs(10, 0.1f, deltaTime);
 
-            //// 3. Complete all jobs and apply results
-            //rigidJobManager.CompleteAllJobsAndApply(deltaTime);
+            // 3. Complete all jobs and apply results
+            rigidJobManager.CompleteAllJobsAndApply();
 
-            // 1. Initialize predicted positions
-            foreach (var point in allSpringPoints)
-            {
-                point.predictedPosition = point.position;
-                point.force = Vector3.zero; // Clear forces
-            }
+            //// 1. Initialize predicted positions
+            //foreach (var point in allSpringPoints)
+            //{
+            //    point.predictedPosition = point.position;
+            //    point.force = Vector3.zero; // Clear forces
+            //}
 
-            // 2. Apply gravity and other forces directly (skip jobs for rigid mode)
-            if (applyGravity)
-            {
-                foreach (var point in allSpringPoints)
-                {
-                    if (!point.isFixed)
-                        point.force += gravity * point.mass;
-                }
-            }
+            //// 2. Apply gravity and other forces directly (skip jobs for rigid mode)
+            //if (applyGravity)
+            //{
+            //    foreach (var point in allSpringPoints)
+            //    {
+            //        if (!point.isFixed)
+            //            point.force += gravity * point.mass;
+            //    }
+            //}
 
-            // 3. Apply spring forces as rigid constraints (not as forces)
-            // (We don't use ScheduleSpringOrRigidJobs in rigid mode)
+            //// 3. Apply spring forces as rigid constraints (not as forces)
+            //// (We don't use ScheduleSpringOrRigidJobs in rigid mode)
 
-            // 4. Integrate forces to get predicted positions
-            foreach (var point in allSpringPoints)
-            {
-                if (!point.isFixed)
-                {
-                    Vector3 acceleration = point.force / point.mass;
-                    point.velocity += acceleration * deltaTime;
-                    point.predictedPosition = point.position + point.velocity * deltaTime;
-                }
-            }
+            //// 4. Integrate forces to get predicted positions
+            //foreach (var point in allSpringPoints)
+            //{
+            //    if (!point.isFixed)
+            //    {
+            //        Vector3 acceleration = point.force / point.mass;
+            //        point.velocity += acceleration * deltaTime;
+            //        point.predictedPosition += point.velocity * deltaTime;
+            //    }
+            //}
 
-            // 5. Solve constraints (multiple iterations)
-            for (int i = 0; i < 1; i++)
-            {
-                foreach (var connection in allSpringConnections)
-                {
-                    connection.EnforceRigidConstraint();
-                }
-            }
+            //// 5. Solve constraints (multiple iterations)
+            //for (int i = 0; i < 5; i++)  // Try 3-10 iterations
+            //{
+            //    foreach (var connection in allSpringConnections)
+            //    {
+            //        connection.EnforceRigidConstraint();
+            //    }
+            //}
 
-            // 6. Update velocities and positions
-            foreach (var point in allSpringPoints)
-            {
-                if (!point.isFixed)
-                {
-                    point.velocity = (point.predictedPosition - point.position) / deltaTime;
-                    point.position = point.predictedPosition;
-                }
-            }
+            //// 6. Update velocities and positions
+            //foreach (var point in allSpringPoints)
+            //{
+            //    if (!point.isFixed)
+            //    {
+            //        point.velocity = (point.predictedPosition - point.position) / deltaTime;
+            //        point.position = point.predictedPosition;
+            //    }
+            //}
         }
         else
         {
@@ -219,7 +220,7 @@ public class OctreeSpringFiller : MonoBehaviour
             springJobManager.ScheduleSpringJobs(deltaTime);
 
             // 3. Complete all jobs and apply results
-            springJobManager.CompleteAllJobsAndApply(deltaTime);
+            springJobManager.CompleteAllJobsAndApply();
 
             // This next section was moved to Jobs
 
@@ -301,8 +302,11 @@ public class OctreeSpringFiller : MonoBehaviour
         }
         averagePos /= allSpringPoints.Count;
 
-        // Update mesh position to follow points
-        transform.position = averagePos;
+        if (!math.any(math.isnan(averagePos)))
+        {
+            // Update mesh position to follow points
+            transform.position = averagePos;
+        }
 
         // Update each vertex based on its corresponding point
         for (int i = 0; i < vertices.Length; i++)

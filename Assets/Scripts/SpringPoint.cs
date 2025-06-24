@@ -17,7 +17,9 @@ public class SpringConnection
         this.damperConstant = damperConstant;
     }
 
-    public void EnforceRigidConstraint()
+    // this no longer being called 
+    // the logic has been moved to Jobs
+    public void EnforceRigidConstraint(float relaxation = 0.5f)
     {
         if (point1 == null || point2 == null || point1 == point2)
             return;
@@ -28,7 +30,7 @@ public class SpringConnection
         if (distance == 0 || float.IsNaN(distance)) return;
 
         float stretch = distance - restLength;
-        Vector3 correction = direction.normalized * (stretch * 0.5f);
+        Vector3 correction = direction.normalized * (stretch * 0.5f) * relaxation;
 
         // Fixed point support
         if (!point1.isFixed && !point2.isFixed)
@@ -38,11 +40,11 @@ public class SpringConnection
         }
         else if (!point1.isFixed)
         {
-            point1.predictedPosition += correction * 2f;
+            point1.predictedPosition += correction;
         }
         else if (!point2.isFixed)
         {
-            point2.predictedPosition -= correction * 2f;
+            point2.predictedPosition -= correction;
         }
     }
 
@@ -111,6 +113,8 @@ public class SpringPoint
         initialPosition = position;
     }
 
+    // this no longer being called 
+    // the logic has been moved to Jobs
     public void UpdatePoint(float deltaTime)
     {
         if (isFixed) return;
@@ -128,7 +132,7 @@ public class SpringPoint
         if (mass <= 0) mass = 1f;
 
         // --- Force/Velocity Validation ---
-        if (!float.IsNaN(force.x)  && !float.IsNaN(force.y) && !float.IsNaN(force.z))
+        if (!float.IsNaN(force.x) && !float.IsNaN(force.y) && !float.IsNaN(force.z))
         {
             Vector3 acceleration = force / mass;
             velocity += acceleration * deltaTime;

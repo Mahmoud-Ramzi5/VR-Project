@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Threading;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -10,37 +11,20 @@ using UnityEngine;
 public class RigidJobManager : MonoBehaviour
 {
     // NativeMultiHashMap was not found
-    private NativeParallelMultiHashMap<int, float3> forceMap;
-    private NativeParallelMultiHashMap<int, float3> correctionMap;
-
+    private NativeArray<float3> forces;
     private NativeArray<float3> velocities;
     private NativeArray<float3> positions;
+    private NativeArray<float3> predictedPositions;
+
+    private NativeArray<float> masses;
     private NativeArray<bool> isFixed;
 
     private NativeArray<int2> connections;
-    private NativeArray<float> springConstants;
-    private NativeArray<float> damperConstants;
     private NativeArray<float> restLengths;
-
-    private NativeArray<float> masses;
-
-    // Double buffered forces
-    private NativeArray<float3> forcesBufferA;
-    private NativeArray<float3> forcesBufferB;
-    private bool usingForceBufferA;
-
-    // Double buffered velocities
-    private NativeArray<float3> velocitiesBufferA;
-    private NativeArray<float3> velocitiesBufferB;
-    private bool usingVelocityBufferA;
-
-    // Double buffered positions
-    private NativeArray<float3> positionsBufferA;
-    private NativeArray<float3> positionsBufferB;
-    private bool usingPositionBufferA;
 
     private JobHandle gravityJobHandle;
     private JobHandle rigidJobHandle;
+    private JobHandle pointJobHandle;
 
     // Reference to the parent system
     private OctreeSpringFiller parentSystem;
@@ -49,30 +33,16 @@ public class RigidJobManager : MonoBehaviour
     {
         parentSystem = parent;
 
+        forces = new NativeArray<float3>(pointCount, Allocator.Persistent);
         velocities = new NativeArray<float3>(pointCount, Allocator.Persistent);
         positions = new NativeArray<float3>(pointCount, Allocator.Persistent);
-        isFixed = new NativeArray<bool>(pointCount, Allocator.Persistent);
+        predictedPositions = new NativeArray<float3>(pointCount, Allocator.Persistent);
+
         masses = new NativeArray<float>(pointCount, Allocator.Persistent);
+        isFixed = new NativeArray<bool>(pointCount, Allocator.Persistent);
 
         connections = new NativeArray<int2>(connectionCount, Allocator.Persistent);
-        springConstants = new NativeArray<float>(connectionCount, Allocator.Persistent);
-        damperConstants = new NativeArray<float>(connectionCount, Allocator.Persistent);
         restLengths = new NativeArray<float>(connectionCount, Allocator.Persistent);
-
-        // Initialize both force buffers
-        forcesBufferA = new NativeArray<float3>(pointCount, Allocator.Persistent);
-        forcesBufferB = new NativeArray<float3>(pointCount, Allocator.Persistent);
-        usingForceBufferA = true;
-
-        // Initialize both velocity buffers
-        velocitiesBufferA = new NativeArray<float3>(pointCount, Allocator.Persistent);
-        velocitiesBufferB = new NativeArray<float3>(pointCount, Allocator.Persistent);
-        usingVelocityBufferA = true;
-
-        // Initialize both position buffers
-        positionsBufferA = new NativeArray<float3>(pointCount, Allocator.Persistent);
-        positionsBufferB = new NativeArray<float3>(pointCount, Allocator.Persistent);
-        usingPositionBufferA = true;
 
         // Fill fixed and mass
         for (int i = 0; i < parent.allSpringPoints.Count; i++)
@@ -80,28 +50,22 @@ public class RigidJobManager : MonoBehaviour
             isFixed[i] = parent.allSpringPoints[i].isFixed;
             masses[i] = parent.allSpringPoints[i].mass;
         }
-
-        // Initialize force map with estimated capacity
-        int estimatedForceCount = connectionCount * 2 + pointCount;
-        forceMap = new NativeParallelMultiHashMap<int, float3>(estimatedForceCount, Allocator.Persistent);
-        correctionMap = new NativeParallelMultiHashMap<int, float3>(estimatedForceCount, Allocator.Persistent);
     }
 
     [BurstCompile]
     public struct GravityJob : IJobParallelFor
     {
-        public NativeParallelMultiHashMap<int, float3>.ParallelWriter forceMap;
-
         [ReadOnly] public float3 gravity;
         [ReadOnly] public bool applyGravity;
         [ReadOnly] public NativeArray<float> masses;
+        [WriteOnly] public NativeArray<float3> forces;
 
         public void Execute(int index)
         {
             if (applyGravity)
             {
                 // Add gravity force to each point
-                forceMap.Add(index, gravity * masses[index]);
+                forces[index] = gravity * masses[index];
             }
         }
     }
@@ -109,118 +73,135 @@ public class RigidJobManager : MonoBehaviour
     [BurstCompile]
     struct IntegrateForcesJob : IJobParallelFor
     {
-        [ReadOnly] public NativeParallelMultiHashMap<int, float3> forceMap;
-        [ReadOnly] public NativeArray<bool> isFixed;
+        [ReadOnly] public NativeArray<float3> forces;
         [ReadOnly] public NativeArray<float> masses;
+        [ReadOnly] public NativeArray<bool> isFixed;
         [ReadOnly] public float deltaTime;
 
-        public NativeArray<float3> forces;
         public NativeArray<float3> velocities;
-        public NativeArray<float3> positions;
+        public NativeArray<float3> predictedPositions;
 
 
         public void Execute(int pointIndex)
         {
             if (isFixed[pointIndex]) return; // Skip fixed points
 
-            float3 totalForce = float3.zero;
-            if (forceMap.TryGetFirstValue(pointIndex, out float3 force, out var it))
+            // --- NaN/Origin Checks ---
+            float3 position = predictedPositions[pointIndex];
+            if (math.any(math.isnan(position)))
             {
-                do
-                {
-                    totalForce += force;
-                } while (forceMap.TryGetNextValue(out force, ref it));
+                forces[pointIndex] = float3.zero;
+                velocities[pointIndex] = float3.zero;
+                return;
             }
 
-            forces[pointIndex] = totalForce;
-            float3 acceleration = totalForce / masses[pointIndex];
+            // Prevent division by zero
+            float mass = math.max(masses[pointIndex], 1f);
 
-            // Update velocity and predictedPosition
-            velocities[pointIndex] += acceleration * deltaTime;
-            positions[pointIndex] += velocities[pointIndex] * deltaTime;
+            // --- Force/Velocity Validation ---
+            float3 force = forces[pointIndex];
+            if (!math.any(math.isnan(force)))
+            {
+                float3 acceleration = force / mass;
+                float3 velocity = velocities[pointIndex] + (acceleration * deltaTime);
+
+                // More conservative velocity clamping (50 units/s squared)
+                if (math.lengthsq(velocity) > 2500f)
+                {
+                    velocity = math.normalize(velocity) * 50f;
+                }
+
+                velocities[pointIndex] = velocity;
+            }
+
+            float3 predictedPosition = position + (velocities[pointIndex] * deltaTime);
+            if (!math.any(math.isnan(predictedPosition)) && math.length(predictedPosition) < 100000f)
+            {
+                predictedPositions[pointIndex] = predictedPosition;
+            }
+            else
+            {
+                velocities[pointIndex] = float3.zero;
+            }
         }
     }
 
     [BurstCompile]
-    struct RigidConstraintJob : IJobParallelFor
+    struct RigidConstraintJob : IJob    // No ParallelFor
     {
-        public NativeParallelMultiHashMap<int, float3>.ParallelWriter correctionMap;
-
-        [ReadOnly] public NativeArray<float3> positions;
         [ReadOnly] public NativeArray<bool> isFixed;
-
         [ReadOnly] public NativeArray<int2> connections;
         [ReadOnly] public NativeArray<float> restLengths;
 
-        public void Execute(int connectionIndex)
+        [ReadOnly] public float relaxation;
+        public NativeArray<float3> predictedPositions;
+
+        public void Execute()
         {
-            int2 points = connections[connectionIndex];
-            float3 position1 = positions[points.x];
-            float3 position2 = positions[points.y];
-
-            float3 direction = position2 - position1;
-            float distance = math.length(direction);
-
-            if (distance < 1e-6f || float.IsNaN(distance)) return;
-
-            direction = direction / distance;
-            float stretch = distance - restLengths[connectionIndex];
-            float3 correction = direction * (stretch * 0.5f);
-
-            // Add corrections with conditions
-            if (!isFixed[points.x] && !isFixed[points.y])
+            for (int i = 0; i < connections.Length; i++)
             {
-                correctionMap.Add(points.x, correction);
-                correctionMap.Add(points.y, -correction);
-            }
-            else if (!isFixed[points.x])
-            {
-                correctionMap.Add(points.x, correction * 2f);
-            }
-            else if (!isFixed[points.y])
-            {
-                correctionMap.Add(points.y, -correction * 2f);
+                int2 points = connections[i];
+                float3 position1 = predictedPositions[points.x];
+                float3 position2 = predictedPositions[points.y];
+
+                float3 direction = position2 - position1;
+                float distance = math.length(direction);
+
+                if (distance < 1e-6f || float.IsNaN(distance)) return;
+
+                direction = direction / distance;
+                float stretch = distance - restLengths[i];
+                float3 correction = direction * (stretch * 0.5f) * relaxation;
+
+                // Add corrections with conditions
+                if (!isFixed[points.x]) predictedPositions[points.x] += correction;
+                if (!isFixed[points.y]) predictedPositions[points.y] -= correction;
             }
         }
     }
 
     [BurstCompile]
-    struct RigidCorrectionJob : IJobParallelFor
+    struct UpdatePointJob : IJobParallelFor
     {
-        [ReadOnly] public NativeParallelMultiHashMap<int, float3> correctionMap;
-        [ReadOnly] public NativeArray<float3> integratedPositions; // Add this
-        [ReadOnly] public NativeArray<float3> originalPositions;
-        [WriteOnly] public NativeArray<float3> velocities;
+        [ReadOnly] public NativeArray<float3> predictedPositions;
+        public NativeArray<float3> originalPositions;
+        public NativeArray<float3> velocities;
 
-        public NativeArray<float3> NewPositions;
+        [ReadOnly] public NativeArray<bool> isFixed;
         [ReadOnly] public float deltaTime;
 
         public void Execute(int pointIndex)
         {
-            float3 totalCorrection = float3.zero;
+            if (isFixed[pointIndex]) return; // Skip fixed points
 
-            if (correctionMap.TryGetFirstValue(pointIndex, out float3 correction, out var it))
+            // Update point velocity
+            float3 velocity = (predictedPositions[pointIndex] - originalPositions[pointIndex]) / deltaTime;
+            velocity *= 0.98f; // 0.98f ~ 2% damping
+
+            // More conservative velocity clamping (50 units/s squared)
+            if (math.lengthsq(velocity) > 2500f)
             {
-                do
-                {
-                    totalCorrection += correction;
-                } while (correctionMap.TryGetNextValue(out correction, ref it));
+                velocity = math.normalize(velocity) * 50f;
             }
 
-            NewPositions[pointIndex] = integratedPositions[pointIndex] + totalCorrection;
-            velocities[pointIndex] = (NewPositions[pointIndex] - originalPositions[pointIndex]) / deltaTime;
+            velocities[pointIndex] = velocity;
+
+            // Update point position
+            originalPositions[pointIndex] = predictedPositions[pointIndex];
         }
     }
 
     public void ScheduleGravityJobs(float3 gravity, bool applyGravity)
     {
-        // Clear the force map
-        forceMap.Clear();
+        // Clear the forces
+        for (int i = 0; i < forces.Length; i++)
+        {
+            forces[i] = float3.zero;
+        }
 
         var gravityJob = new GravityJob
         {
-            forceMap = forceMap.AsParallelWriter(),
-
+            forces = forces,
             masses = masses,
             gravity = gravity,
             applyGravity = applyGravity
@@ -229,118 +210,96 @@ public class RigidJobManager : MonoBehaviour
         gravityJobHandle = gravityJob.Schedule(masses.Length, 64);
     }
 
-    public void ScheduleRigidJobs(float deltaTime)
+    public void ScheduleRigidJobs(int checkIterations, float relaxation, float deltaTime)
     {
-        // Clear the force buffer by setting each element to zero
-        var currentForceBuffer = usingForceBufferA ? forcesBufferA : forcesBufferB; 
-        for (int i = 0; i < currentForceBuffer.Length; i++)
-        {
-            currentForceBuffer[i] = float3.zero;
-        }
-
-        // Update positions and velocities from parent system
-        var currentVelocityBuffer = usingVelocityBufferA ? velocitiesBufferA : velocitiesBufferB;
-        var currentPositionBuffer = usingPositionBufferA ? positionsBufferA : positionsBufferB;
         for (int i = 0; i < parentSystem.allSpringPoints.Count; i++)
         {
-            // Update positions and velocities
-            velocities[i] = parentSystem.allSpringPoints[i].velocity;
+            // Initialize positions and velocities
             positions[i] = parentSystem.allSpringPoints[i].position;
-
-            // Update all buffers to maintain consistency
-            forcesBufferA[i] = (float3)parentSystem.allSpringPoints[i].force;
-            forcesBufferB[i] = (float3)parentSystem.allSpringPoints[i].force;
-            velocitiesBufferA[i] = (float3)parentSystem.allSpringPoints[i].velocity;
-            velocitiesBufferB[i] = (float3)parentSystem.allSpringPoints[i].velocity;
-            positionsBufferA[i] = (float3)parentSystem.allSpringPoints[i].position;
-            positionsBufferB[i] = (float3)parentSystem.allSpringPoints[i].position;
+            velocities[i] = parentSystem.allSpringPoints[i].velocity;
+            predictedPositions[i] = positions[i]; // Critical initialization
         }
 
         var integrateJob = new IntegrateForcesJob
         {
-            forceMap = forceMap,
-            isFixed = isFixed,
+            forces = forces,
             masses = masses,
+            isFixed = isFixed,
             deltaTime = deltaTime,
-            forces = currentForceBuffer,
-            velocities = currentVelocityBuffer,
-            positions = currentPositionBuffer,
+            velocities = velocities,
+            predictedPositions = predictedPositions,
         };
 
+        rigidJobHandle = integrateJob.Schedule(parentSystem.allSpringPoints.Count, 64, gravityJobHandle);
+
+        // Predict positions and end Jobs
+        JobHandle.CombineDependencies(gravityJobHandle, rigidJobHandle).Complete();
+
+        // Correct predicted positions
         var constraintJob = new RigidConstraintJob
         {
-            correctionMap = correctionMap.AsParallelWriter(),
-
-            positions = currentPositionBuffer,
             isFixed = isFixed,
-
             connections = connections,
             restLengths = restLengths,
+
+            relaxation = relaxation,
+            predictedPositions = predictedPositions,
         };
 
-        var correctionJob = new RigidCorrectionJob
+        JobHandle iterationHandle = new JobHandle();
+        for (int i = 0; i < checkIterations; i++)   // Try 3-10 iterations
         {
-            correctionMap = correctionMap,
-            originalPositions = positions,
+            iterationHandle = constraintJob.Schedule(iterationHandle);
+        }
+        iterationHandle.Complete();
 
-            integratedPositions = currentPositionBuffer,
-            //NewPositions = currentPositionBuffer,
-            velocities = currentVelocityBuffer,
+        var updatePointJob = new UpdatePointJob
+        {
+            predictedPositions = predictedPositions,
+            originalPositions = positions,
+            velocities = velocities,
+            isFixed = isFixed,
             deltaTime = deltaTime
         };
 
-        // Save forces
-        rigidJobHandle = integrateJob.Schedule(parentSystem.allSpringPoints.Count, 64, gravityJobHandle);
-
-        // Apply constraint
-        rigidJobHandle = constraintJob.Schedule(connections.Length, 64, rigidJobHandle);
-        rigidJobHandle = correctionJob.Schedule(parentSystem.allSpringPoints.Count, 64, rigidJobHandle);
+        pointJobHandle = updatePointJob.Schedule(parentSystem.allSpringPoints.Count, 64);
     }
 
-    public void CompleteAllJobsAndApply(float deltaTime)
+    public void CompleteAllJobsAndApply()
     {
-        // Complete All jobs
-        JobHandle.CombineDependencies(gravityJobHandle, rigidJobHandle).Complete();
-
-        // Get all buffers we finished writing to
-        var completedForceBuffer = usingForceBufferA ? forcesBufferA : forcesBufferB;
-        var completedVelocityBuffer = usingVelocityBufferA ? velocitiesBufferA : velocitiesBufferB;
-        var completedPositionBuffer = usingPositionBufferA ? positionsBufferA : positionsBufferB;
+        // Complete Last job
+        pointJobHandle.Complete();
 
         // Apply forces to SpringPointTest objects
         for (int i = 0; i < parentSystem.allSpringPoints.Count; i++)
         {
             // Convert float3 to Vector3
-            var forceX = completedForceBuffer[i].x;
-            var forceY = completedForceBuffer[i].y;
-            var forceZ = completedForceBuffer[i].z;
+            var forceX = forces[i].x;
+            var forceY = forces[i].y;
+            var forceZ = forces[i].z;
             Vector3 forceVector = new Vector3(forceX, forceY, forceZ);
             parentSystem.allSpringPoints[i].force = forceVector;
 
             if (!parentSystem.allSpringPoints[i].isFixed)
             {
-                var velocityX = completedVelocityBuffer[i].x;
-                var velocityY = completedVelocityBuffer[i].y;
-                var velocityZ = completedVelocityBuffer[i].z;
-                Vector3 velocityVector = new Vector3(velocityX, velocityY, velocityZ);
-                parentSystem.allSpringPoints[i].velocity = velocityVector;
-
-                var positionX = completedPositionBuffer[i].x;
-                var positionY = completedPositionBuffer[i].y;
-                var positionZ = completedPositionBuffer[i].z;
-                Vector3 positionVector = new Vector3(positionX, positionY, positionZ);
-                parentSystem.allSpringPoints[i].position = positionVector;
+                if (!math.any(math.isnan(velocities[i])))
+                {
+                    var velocityX = velocities[i].x;
+                    var velocityY = velocities[i].y;
+                    var velocityZ = velocities[i].z;
+                    Vector3 velocityVector = new Vector3(velocityX, velocityY, velocityZ);
+                    parentSystem.allSpringPoints[i].velocity = velocityVector;
+                }
+                if (!math.any(math.isnan(positions[i])))
+                {
+                    var positionX = positions[i].x;
+                    var positionY = positions[i].y;
+                    var positionZ = positions[i].z;
+                    Vector3 positionVector = new Vector3(positionX, positionY, positionZ);
+                    parentSystem.allSpringPoints[i].position = positionVector;
+                }
             }
         }
-
-        // Clear forces for next frame
-        forceMap.Clear();
-        correctionMap.Clear();
-
-        // Switch buffers for next frame
-        usingForceBufferA = !usingForceBufferA;
-        usingVelocityBufferA = !usingVelocityBufferA;
-        usingPositionBufferA = !usingPositionBufferA;
     }
 
     public void UpdateConnectionData(List<SpringConnection> connections)
@@ -351,31 +310,21 @@ public class RigidJobManager : MonoBehaviour
             int index1 = parentSystem.allSpringPoints.IndexOf(connections[i].point1);
             int index2 = parentSystem.allSpringPoints.IndexOf(connections[i].point2);
             this.connections[i] = new int2(index1, index2);
-            springConstants[i] = connections[i].springConstant;
-            damperConstants[i] = connections[i].damperConstant;
             restLengths[i] = connections[i].restLength;
         }
     }
 
     private void OnDestroy()
     {
-        if (forceMap.IsCreated) forceMap.Dispose();
-        if (positions.IsCreated) positions.Dispose();
+        if (forces.IsCreated) forces.Dispose();
         if (velocities.IsCreated) velocities.Dispose();
+        if (positions.IsCreated) positions.Dispose();
+        if (predictedPositions.IsCreated) predictedPositions.Dispose();
 
         if (connections.IsCreated) connections.Dispose();
         if (restLengths.IsCreated) restLengths.Dispose();
 
         if (isFixed.IsCreated) isFixed.Dispose();
         if (masses.IsCreated) masses.Dispose();
-
-        if (forcesBufferA.IsCreated) forcesBufferA.Dispose();
-        if (forcesBufferB.IsCreated) forcesBufferB.Dispose();
-
-        if (velocitiesBufferA.IsCreated) velocitiesBufferA.Dispose();
-        if (velocitiesBufferB.IsCreated) velocitiesBufferB.Dispose();
-
-        if (positionsBufferA.IsCreated) positionsBufferA.Dispose();
-        if (positionsBufferB.IsCreated) positionsBufferB.Dispose();
     }
 }

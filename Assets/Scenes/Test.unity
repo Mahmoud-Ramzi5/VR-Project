@@ -156,6 +156,7 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
+  isRigid: 1
   springConstantL1: 200
   damperConstantL1: 2
   connectionRadiusL1: 1
@@ -366,6 +367,7 @@ MonoBehaviour:
   minNodeSize: 1
   PointSpacing: 1
   isSolid: 1
+  isRigid: 0
   springConstantL1: 100
   damperConstantL1: 0.6
   connectionRadiusL1: 1
@@ -611,6 +613,7 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
+  isRigid: 0
   springConstantL1: 100
   damperConstantL1: 0.6
   connectionRadiusL1: 1
@@ -779,6 +782,7 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
+  isRigid: 0
   springConstantL1: 100
   damperConstantL1: 0.6
   connectionRadiusL1: 1
@@ -903,6 +907,7 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
+  isRigid: 0
   springConstantL1: 100
   damperConstantL1: 0.6
   connectionRadiusL1: 1
@@ -1095,6 +1100,7 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
+  isRigid: 1
   springConstantL1: 120
   damperConstantL1: 0.6
   connectionRadiusL1: 1
@@ -1304,6 +1310,7 @@ MonoBehaviour:
   minNodeSize: 0.5
   PointSpacing: 0.5
   isSolid: 1
+  isRigid: 0
   springConstantL1: 100
   damperConstantL1: 0.6
   connectionRadiusL1: 1
@@ -1428,6 +1435,7 @@ MonoBehaviour:
   minNodeSize: 1
   PointSpacing: 1
   isSolid: 1
+  isRigid: 0
   springConstantL1: 100
   damperConstantL1: 0.6
   connectionRadiusL1: 1

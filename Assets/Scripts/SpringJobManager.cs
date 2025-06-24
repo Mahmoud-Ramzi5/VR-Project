@@ -12,7 +12,6 @@ public class SpringJobManager : MonoBehaviour
 {
     // NativeMultiHashMap was not found
     private NativeParallelMultiHashMap<int, float3> forceMap;
-    private NativeParallelMultiHashMap<int, float3> positionMap;
 
     private NativeArray<float3> velocities;
     private NativeArray<float3> positions;
@@ -85,7 +84,6 @@ public class SpringJobManager : MonoBehaviour
         // Initialize force map with estimated capacity
         int estimatedForceCount = connectionCount * 2 + pointCount;
         forceMap = new NativeParallelMultiHashMap<int, float3>(estimatedForceCount, Allocator.Persistent);
-        positionMap = new NativeParallelMultiHashMap<int, float3>(estimatedForceCount, Allocator.Persistent);
     }
 
     [BurstCompile]
@@ -314,7 +312,7 @@ public class SpringJobManager : MonoBehaviour
         
     }
 
-    public void CompleteAllJobsAndApply(float deltaTime)
+    public void CompleteAllJobsAndApply()
     {
         // Complete All jobs
         JobHandle.CombineDependencies(gravityJobHandle, springJobHandle, pointJobHandle).Complete();
@@ -352,7 +350,6 @@ public class SpringJobManager : MonoBehaviour
 
         // Clear forces for next frame
         forceMap.Clear();
-        positionMap.Clear();
 
         // Switch buffers for next frame
         usingForceBufferA = !usingForceBufferA;
@@ -381,6 +378,8 @@ public class SpringJobManager : MonoBehaviour
         if (velocities.IsCreated) velocities.Dispose();
 
         if (connections.IsCreated) connections.Dispose();
+        if (springConstants.IsCreated) springConstants.Dispose();
+        if (damperConstants.IsCreated) damperConstants.Dispose();
         if (restLengths.IsCreated) restLengths.Dispose();
 
         if (isFixed.IsCreated) isFixed.Dispose();

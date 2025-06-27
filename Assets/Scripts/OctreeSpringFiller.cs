@@ -31,6 +31,7 @@ public class OctreeSpringFiller : MonoBehaviour
     private Bounds meshBounds;
     private Vector3[] meshVertices;
     private int[] meshTriangles;
+    private MeshManager meshManager;
     private Vector3 lastPos;
 
     [Header("Ground Collision")]
@@ -68,16 +69,13 @@ public class OctreeSpringFiller : MonoBehaviour
 
     void Start()
     {
+        meshManager = GetComponent<MeshManager>();
         // save transform
         lastPos = transform.position;
 
-        // Get mesh
-        targetMesh = GetComponent<MeshFilter>().mesh;
-        targetMesh.RecalculateBounds();
-
+        targetMesh = meshManager.CurrentMesh;
+        meshVertices=targetMesh.vertices;
         meshBounds = targetMesh.bounds;
-        meshVertices = targetMesh.vertices;
-        meshTriangles = targetMesh.triangles;
 
         FillObjectWithSpringPoints();
 
@@ -226,10 +224,7 @@ public class OctreeSpringFiller : MonoBehaviour
             }
         }
 
-        // Apply changes to mesh
-        targetMesh.vertices = vertices;
-        targetMesh.RecalculateNormals();
-        targetMesh.RecalculateBounds();
+        meshManager.UpdateVertexPositions(vertices);
     }
 
     SpringPoint FindClosestPoint(Vector3 worldPos)
@@ -492,6 +487,7 @@ public class OctreeSpringFiller : MonoBehaviour
             newObj = new GameObject($"Point_{worldPosition.x}_{worldPosition.y}_{worldPosition.z}");
         }
         objects.Add(newObj);
+        
 
         SetConnectionsVisualization();
     }

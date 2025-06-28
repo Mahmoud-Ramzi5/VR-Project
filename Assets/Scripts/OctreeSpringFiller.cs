@@ -52,6 +52,16 @@ public class OctreeSpringFiller : MonoBehaviour
     public List<GameObject> objects = new List<GameObject>();
     private LineRenderer lineRenderer;
 
+    // NEW: Surface point tracking
+    private List<SpringPoint> surfaceSpringPoints = new List<SpringPoint>();
+    private Dictionary<SpringPoint, int> surfacePointToVertexIndex = new Dictionary<SpringPoint, int>();
+    private int originalVertexCount;
+    // NEW: Surface integration settings
+    [Header("Surface Integration")]
+    public float surfaceDetectionThreshold = 0.2f;
+    public bool enableMeshSubdivision = true;
+    public bool autoUpdateMeshFromSurface = true;
+
     private void Awake()
     {
         GameObject obj = new GameObject("LineRenderer");
@@ -79,7 +89,17 @@ public class OctreeSpringFiller : MonoBehaviour
         meshVertices = targetMesh.vertices;
         meshTriangles = targetMesh.triangles;
 
+        // NEW: Store original vertex count
+        originalVertexCount = meshVertices.Length;
+
         FillObjectWithSpringPoints();
+
+        // NEW: After filling, identify surface points and subdivide mesh
+        if (enableMeshSubdivision)
+        {
+            IdentifySurfacePoints();
+            SubdivideMeshWithSurfacePoints();
+        }
 
         // Update positions and bounds on start
         foreach (SpringPoint point in allSpringPoints)
@@ -164,6 +184,11 @@ public class OctreeSpringFiller : MonoBehaviour
             point.UpdatePoint(Time.fixedDeltaTime);
         }
 
+
+        if (Time.frameCount % 3 == 0) // Every 3 frames
+        {
+            UpdateSurfacePointsInMesh();
+        }
 
         // Update Visualization
         UpdatePointsVisualization();
@@ -305,6 +330,9 @@ public class OctreeSpringFiller : MonoBehaviour
                 Destroy(point.gameObject);
         }
         allSpringPoints.Clear();
+        // NEW: Clear surface point data
+        surfaceSpringPoints.Clear();
+        surfacePointToVertexIndex.Clear();
     }
 
     int BuildOctree(OctreeNode node)
@@ -776,6 +804,199 @@ public class OctreeSpringFiller : MonoBehaviour
                 lineRenderer.SetPosition(i * 2 + 1, allSpringConnections[i].point2.position);
             }
         //}
+    }
+    private void IdentifySurfacePoints()
+    {
+        surfaceSpringPoints.Clear();
+
+        foreach (SpringPoint point in allSpringPoints)
+        {
+            if (IsPointOnSurface(point.position))
+            {
+                surfaceSpringPoints.Add(point);
+            }
+        }
+
+        Debug.Log($"Found {surfaceSpringPoints.Count} surface spring points out of {allSpringPoints.Count} total points");
+    }
+
+    private bool IsPointOnSurface(Vector3 worldPoint)
+    {
+        Vector3 localPoint = transform.InverseTransformPoint(worldPoint);
+
+        // Find distance to closest surface point
+        float closestDistance = float.MaxValue;
+
+        // Check distance to all original mesh vertices
+        for (int i = 0; i < originalVertexCount; i++)
+        {
+            float distance = Vector3.Distance(localPoint, meshVertices[i]);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+            }
+        }
+
+        return closestDistance <= surfaceDetectionThreshold;
+    }
+
+    public void SubdivideMeshWithSurfacePoints()
+    {
+        if (surfaceSpringPoints.Count == 0)
+        {
+            Debug.LogWarning("No surface spring points found for subdivision");
+            return;
+        }
+
+        Debug.Log($"Subdividing mesh with {surfaceSpringPoints.Count} surface points");
+
+        // Step 1: Add vertices for each surface point
+        List<Vector3> newVertices = new List<Vector3>(meshVertices);
+
+        foreach (SpringPoint surfacePoint in surfaceSpringPoints)
+        {
+            Vector3 localPos = transform.InverseTransformPoint(surfacePoint.position);
+            newVertices.Add(localPos);
+
+            // Map surface point to its new vertex index
+            int newVertexIndex = newVertices.Count - 1;
+            surfacePointToVertexIndex[surfacePoint] = newVertexIndex;
+        }
+
+        // Step 2: Create new triangles incorporating surface points
+        List<int> newTriangles = new List<int>(meshTriangles);
+        CreateTrianglesForSurfacePoints(newVertices, newTriangles);
+
+        // Step 3: Update the mesh
+        UpdateMeshGeometry(newVertices.ToArray(), newTriangles.ToArray());
+
+        Debug.Log($"Mesh subdivision complete. Vertices: {meshVertices.Length}, Triangles: {meshTriangles.Length / 3}");
+    }
+
+    private void CreateTrianglesForSurfacePoints(List<Vector3> vertices, List<int> triangles)
+    {
+        foreach (var kvp in surfacePointToVertexIndex)
+        {
+            SpringPoint surfacePoint = kvp.Key;
+            int surfaceVertexIndex = kvp.Value;
+            Vector3 surfaceLocalPos = vertices[surfaceVertexIndex];
+
+            // Find the closest original triangle to this surface point
+            int closestTriangleIndex = FindClosestTriangleToPoint(surfaceLocalPos);
+
+            if (closestTriangleIndex >= 0)
+            {
+                // Get the triangle vertices
+                int baseIndex = closestTriangleIndex * 3;
+                int v1 = meshTriangles[baseIndex];
+                int v2 = meshTriangles[baseIndex + 1];
+                int v3 = meshTriangles[baseIndex + 2];
+
+                // Create 3 new triangles connecting surface point to original triangle
+                triangles.AddRange(new[] { surfaceVertexIndex, v1, v2 });
+                triangles.AddRange(new[] { surfaceVertexIndex, v2, v3 });
+                triangles.AddRange(new[] { surfaceVertexIndex, v3, v1 });
+            }
+            else
+            {
+                // Fallback: connect to nearest vertices
+                List<int> nearestVertices = FindNearestVertices(surfaceLocalPos, vertices, 3);
+                if (nearestVertices.Count >= 3)
+                {
+                    triangles.AddRange(new[] { surfaceVertexIndex, nearestVertices[0], nearestVertices[1] });
+                    triangles.AddRange(new[] { surfaceVertexIndex, nearestVertices[1], nearestVertices[2] });
+                    triangles.AddRange(new[] { surfaceVertexIndex, nearestVertices[2], nearestVertices[0] });
+                }
+            }
+        }
+    }
+    private int FindClosestTriangleToPoint(Vector3 localPoint)
+    {
+        float closestDistance = float.MaxValue;
+        int closestTriangle = -1;
+
+        for (int i = 0; i < meshTriangles.Length; i += 3)
+        {
+            Vector3 v1 = meshVertices[meshTriangles[i]];
+            Vector3 v2 = meshVertices[meshTriangles[i + 1]];
+            Vector3 v3 = meshVertices[meshTriangles[i + 2]];
+
+            Vector3 triangleCenter = (v1 + v2 + v3) / 3f;
+            float distance = Vector3.Distance(localPoint, triangleCenter);
+
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestTriangle = i / 3;
+            }
+        }
+
+        return closestTriangle;
+    }
+
+    // NEW: Find nearest vertices to a point
+    private List<int> FindNearestVertices(Vector3 position, List<Vector3> vertices, int count)
+    {
+        var vertexDistances = new List<(int index, float distance)>();
+
+        for (int i = 0; i < originalVertexCount; i++) // Only consider original vertices
+        {
+            float distance = Vector3.Distance(position, vertices[i]);
+            vertexDistances.Add((i, distance));
+        }
+
+        return vertexDistances
+            .OrderBy(x => x.distance)
+            .Take(count)
+            .Select(x => x.index)
+            .ToList();
+    }
+
+    private void UpdateMeshGeometry(Vector3[] newVertices, int[] newTriangles)
+    {
+        meshVertices = newVertices;
+        meshTriangles = newTriangles;
+
+        targetMesh.Clear();
+        targetMesh.vertices = meshVertices;
+        targetMesh.triangles = meshTriangles;
+        targetMesh.RecalculateNormals();
+        targetMesh.RecalculateBounds();
+
+        meshBounds = targetMesh.bounds;
+    }
+
+    private void UpdateSurfacePointsInMesh()
+    {
+        if (!autoUpdateMeshFromSurface || surfacePointToVertexIndex.Count == 0)
+            return;
+
+        bool meshChanged = false;
+
+        foreach (var kvp in surfacePointToVertexIndex)
+        {
+            SpringPoint surfacePoint = kvp.Key;
+            int vertexIndex = kvp.Value;
+
+            if (vertexIndex < meshVertices.Length)
+            {
+                Vector3 newLocalPos = transform.InverseTransformPoint(surfacePoint.position);
+                Vector3 oldLocalPos = meshVertices[vertexIndex];
+
+                if (Vector3.Distance(newLocalPos, oldLocalPos) > 0.01f)
+                {
+                    meshVertices[vertexIndex] = newLocalPos;
+                    meshChanged = true;
+                }
+            }
+        }
+
+        if (meshChanged)
+        {
+            targetMesh.vertices = meshVertices;
+            targetMesh.RecalculateNormals();
+            targetMesh.RecalculateBounds();
+        }
     }
     //
 }

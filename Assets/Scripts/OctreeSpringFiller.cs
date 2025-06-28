@@ -17,7 +17,7 @@ public class OctreeSpringFiller : MonoBehaviour
     public bool isSolid = true;
 
     [Header("Spring Settings")]
-    public float springConstant = 10f;
+    public float springConstant;
     public float damperConstant = 0.5f;
     public float connectionRadius = 2f;
     public float maxRestLength = 3f;
@@ -460,7 +460,7 @@ public class OctreeSpringFiller : MonoBehaviour
                 float restLength = Mathf.Clamp(dist, 0.5f, maxRestLength);
 
                 // Calculate spring constant based on distance
-                float k = springConstant * (10f / dist);
+                float k = springConstant * (1f / dist);
 
                 SpringConnection conn = new SpringConnection(
                     newPoint,
@@ -587,7 +587,7 @@ public class OctreeSpringFiller : MonoBehaviour
                 {
                     // Clamp rest length to reasonable values
                     float restLength = Mathf.Clamp(distance, 0.5f, maxRestLength);
-                    float k = springConstant * (10f / distance);
+                    float k = springConstant * (1f / distance);
 
                     SpringConnection c = new SpringConnection(currentPoint, otherPoint, restLength, k, damperConstant);
                     allSpringConnections.Add(c);

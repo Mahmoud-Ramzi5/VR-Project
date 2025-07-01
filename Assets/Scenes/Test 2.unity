@@ -132,6 +132,7 @@ GameObject:
   - component: {fileID: 111400012}
   - component: {fileID: 111400011}
   - component: {fileID: 111400015}
+  - component: {fileID: 111400016}
   m_Layer: 0
   m_Name: Cube (8)
   m_TagString: Untagged
@@ -156,8 +157,8 @@ MonoBehaviour:
   visualizeSpringConnections: 1
   minNodeSize: 0.5
   PointSpacing: 0.5
-  isSolid: 1
-  springConstant: 10
+  isSolid: 0
+  springConstant: 50
   damperConstant: 0.6
   connectionRadius: 3
   maxRestLength: 3
@@ -166,8 +167,16 @@ MonoBehaviour:
   groundLevel: 0
   groundBounce: 0.5
   groundFriction: 0.8
-  applyGroundCollision: 1
+  applyGroundCollision: 0
+  collisionManager: {fileID: 0}
   objects: []
+  surfaceDetectionThreshold: 0.2
+  enableMeshSubdivision: 1
+  autoUpdateMeshFromSurface: 1
+  applyVelocity: 0
+  boundingVolume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
 --- !u!23 &111400012
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -230,8 +239,8 @@ Transform:
   m_GameObject: {fileID: 111400010}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5, y: 4, z: 5}
-  m_LocalScale: {x: 2, y: 2, z: 2}
+  m_LocalPosition: {x: 3, y: 5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -254,6 +263,37 @@ MonoBehaviour:
   influenceRadius: 1
   showWeights: 0
   logSubdividedTriangles: 1
+--- !u!114 &111400016
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 111400010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 575baa8b5649be846b5a68fef97e570f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  enableInterObjectCollision: 1
+  interObjectCollisionRadius: 1
+  collisionLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  coefficientOfRestitution: 0.6
+  coefficientOfFriction: 0.4
+  useElasticCollision: 1
+  useInelasticCollision: 0
+  useMaterialProperties: 0
+  penetrationCorrection: 0.8
+  velocityThreshold: 0
+  separationForce: 150
+  dampingFactor: 0.98
+  useSpatialHashing: 0
+  spatialHashCellSize: 2
+  totalCollisionsThisFrame: 0
+  showCollisionGizmos: 1
+  verboseDebugLog: 1
 --- !u!1 &154078062
 GameObject:
   m_ObjectHideFlags: 0
@@ -387,7 +427,15 @@ MonoBehaviour:
   groundBounce: 0.5
   groundFriction: 0.8
   applyGroundCollision: 1
+  collisionManager: {fileID: 0}
   objects: []
+  surfaceDetectionThreshold: 0.2
+  enableMeshSubdivision: 1
+  autoUpdateMeshFromSurface: 1
+  applyVelocity: 0
+  boundingVolume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
 --- !u!23 &161842724
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -624,7 +672,15 @@ MonoBehaviour:
   groundBounce: 0.5
   groundFriction: 0.8
   applyGroundCollision: 1
+  collisionManager: {fileID: 0}
   objects: []
+  surfaceDetectionThreshold: 0.2
+  enableMeshSubdivision: 1
+  autoUpdateMeshFromSurface: 1
+  applyVelocity: 0
+  boundingVolume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
 --- !u!23 &744261173
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -785,7 +841,15 @@ MonoBehaviour:
   groundBounce: 0.5
   groundFriction: 0.8
   applyGroundCollision: 1
+  collisionManager: {fileID: 0}
   objects: []
+  surfaceDetectionThreshold: 0.2
+  enableMeshSubdivision: 1
+  autoUpdateMeshFromSurface: 1
+  applyVelocity: 0
+  boundingVolume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
 --- !u!23 &806052910
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -901,7 +965,15 @@ MonoBehaviour:
   groundBounce: 0.5
   groundFriction: 0.8
   applyGroundCollision: 1
+  collisionManager: {fileID: 0}
   objects: []
+  surfaceDetectionThreshold: 0.2
+  enableMeshSubdivision: 1
+  autoUpdateMeshFromSurface: 1
+  applyVelocity: 0
+  boundingVolume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
 --- !u!23 &876942968
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1085,7 +1157,15 @@ MonoBehaviour:
   groundBounce: 0.5
   groundFriction: 0.8
   applyGroundCollision: 1
+  collisionManager: {fileID: 0}
   objects: []
+  surfaceDetectionThreshold: 0.2
+  enableMeshSubdivision: 1
+  autoUpdateMeshFromSurface: 1
+  applyVelocity: 0
+  boundingVolume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0
@@ -1252,6 +1332,7 @@ GameObject:
   - component: {fileID: 968068586}
   - component: {fileID: 968068585}
   - component: {fileID: 968068589}
+  - component: {fileID: 968068590}
   m_Layer: 0
   m_Name: Cube (9)
   m_TagString: Untagged
@@ -1272,22 +1353,30 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   springPointPrefab: {fileID: 7349107700272415433, guid: 95122b2f2fc508c4d8de90c84852e120, type: 3}
-  visualizeSpringPoints: 0
-  visualizeSpringConnections: 0
+  visualizeSpringPoints: 1
+  visualizeSpringConnections: 1
   minNodeSize: 0.5
   PointSpacing: 0.5
-  isSolid: 1
+  isSolid: 0
   springConstant: 100
-  damperConstant: 0.6
+  damperConstant: 1
   connectionRadius: 3
   maxRestLength: 3
-  totalMass: 100
+  totalMass: 50
   applyGravity: 0
   groundLevel: 0
   groundBounce: 0.5
   groundFriction: 0.8
   applyGroundCollision: 1
+  collisionManager: {fileID: 0}
   objects: []
+  surfaceDetectionThreshold: 0.2
+  enableMeshSubdivision: 1
+  autoUpdateMeshFromSurface: 1
+  applyVelocity: 1
+  boundingVolume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
 --- !u!23 &968068586
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1350,7 +1439,7 @@ Transform:
   m_GameObject: {fileID: 968068584}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -5, y: 4, z: 5}
+  m_LocalPosition: {x: -3, y: 5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1374,6 +1463,37 @@ MonoBehaviour:
   influenceRadius: 1
   showWeights: 0
   logSubdividedTriangles: 1
+--- !u!114 &968068590
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 968068584}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 575baa8b5649be846b5a68fef97e570f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  enableInterObjectCollision: 1
+  interObjectCollisionRadius: 1
+  collisionLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  coefficientOfRestitution: 1
+  coefficientOfFriction: 1
+  useElasticCollision: 1
+  useInelasticCollision: 0
+  useMaterialProperties: 0
+  penetrationCorrection: 0.8
+  velocityThreshold: 0
+  separationForce: 150
+  dampingFactor: 0.98
+  useSpatialHashing: 0
+  spatialHashCellSize: 2
+  totalCollisionsThisFrame: 0
+  showCollisionGizmos: 1
+  verboseDebugLog: 1
 --- !u!1 &1320767100
 GameObject:
   m_ObjectHideFlags: 0
@@ -1421,7 +1541,15 @@ MonoBehaviour:
   groundBounce: 0.5
   groundFriction: 0.8
   applyGroundCollision: 1
+  collisionManager: {fileID: 0}
   objects: []
+  surfaceDetectionThreshold: 0.2
+  enableMeshSubdivision: 1
+  autoUpdateMeshFromSurface: 1
+  applyVelocity: 0
+  boundingVolume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
 --- !u!23 &1320767102
 MeshRenderer:
   m_ObjectHideFlags: 0

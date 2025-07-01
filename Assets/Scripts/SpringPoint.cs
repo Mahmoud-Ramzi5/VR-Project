@@ -7,6 +7,7 @@
         public float springConstant = 100f;
         public float damperConstant = 0.5f;
         public float restLength = 1f;
+        public float velocity = 0;
 
         public SpringConnection(SpringPoint point1, SpringPoint point2, float restLength, float springConstant, float damperConstant)
         {

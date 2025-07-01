@@ -39,6 +39,9 @@ public class OctreeSpringFiller : MonoBehaviour
     public float groundFriction = 0.8f; // Friction (0 = full stop, 1 = no friction)
     public bool applyGroundCollision = true;
 
+    [Header("External Systems")]
+    public CollisionManager collisionManager;
+
     // Lists
     private List<Vector3> allPointPositions = new List<Vector3>();
     public List<SpringPoint> allSpringPoints = new List<SpringPoint>();
@@ -62,6 +65,12 @@ public class OctreeSpringFiller : MonoBehaviour
     public bool enableMeshSubdivision = true;
     public bool autoUpdateMeshFromSurface = true;
 
+    public bool applyVelocity = false;
+
+    public Bounds boundingVolume;
+    public List<SpringPoint> SurfacePoints => surfaceSpringPoints;
+
+
     private void Awake()
     {
         GameObject obj = new GameObject("LineRenderer");
@@ -74,6 +83,22 @@ public class OctreeSpringFiller : MonoBehaviour
         lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
         lineRenderer.startWidth = 0.02f;
         lineRenderer.endWidth = 0.02f;
+    }
+
+    private void OnEnable()
+    {
+        if (!CollisionManager.AllSoftBodies.Contains(this))
+        {
+            CollisionManager.AllSoftBodies.Add(this);
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (CollisionManager.AllSoftBodies.Contains(this))
+        {
+            CollisionManager.AllSoftBodies.Remove(this);
+        }
     }
 
     void Start()
@@ -144,6 +169,25 @@ public class OctreeSpringFiller : MonoBehaviour
         }
     }
 
+    public float GetObjectRadius()
+    {
+        if (allSpringPoints.Count == 0) return 1f;
+
+        Vector3 center = transform.position;
+        float maxDistance = 0f;
+
+        foreach (SpringPoint point in allSpringPoints)
+        {
+            float distance = Vector3.Distance(point.position, center);
+            if (distance > maxDistance)
+            {
+                maxDistance = distance;
+            }
+        }
+
+        return maxDistance;
+    }
+
     void FixedUpdate()
     {
         // 1. Schedule gravity job
@@ -165,11 +209,16 @@ public class OctreeSpringFiller : MonoBehaviour
         // 4. Update mesh (consider throttling this)
         //if (Time.frameCount % 3 == 0) // Update mesh every 3 physics frames
         //{
-            // Update mesh to follow points
-            UpdateMeshFromPoints();
+            //// Update mesh to follow points
+            //UpdateMeshFromPoints();
         //}
-
+        // Update points
+        foreach (var point in allSpringPoints)
+        {
+            point.UpdatePoint(Time.fixedDeltaTime);
+        }
         // 5. Handle collisions
+        // First, handle ground collisions
         if (applyGroundCollision)
         {
             foreach (var point in allSpringPoints)
@@ -178,11 +227,12 @@ public class OctreeSpringFiller : MonoBehaviour
             }
         }
 
-        // Update points
-        foreach (var point in allSpringPoints)
+        // Second, handle inter-object collisions by calling the manager
+        if (collisionManager != null)
         {
-            point.UpdatePoint(Time.fixedDeltaTime);
+            collisionManager.ResolveInterObjectCollisions();
         }
+
 
 
         if (Time.frameCount % 3 == 0) // Every 3 frames
@@ -191,6 +241,7 @@ public class OctreeSpringFiller : MonoBehaviour
         }
 
         // Update Visualization
+        UpdateMeshFromPoints();
         UpdatePointsVisualization();
         UpdateConnectionsVisualization();
     }
@@ -316,7 +367,9 @@ public class OctreeSpringFiller : MonoBehaviour
         // initlize visualization
         SetPointsVisualization();
         SetConnectionsVisualization();
-
+        if(applyVelocity)
+        foreach (var point in allSpringPoints)
+            point.velocity = new Vector3(2f, 0, 0);
         // Some logs
         Debug.Log($"Octree Nodes: {total_nodes}");
         Debug.Log($"Created {allSpringPoints.Count} spring points test.");
@@ -818,6 +871,13 @@ public class OctreeSpringFiller : MonoBehaviour
         }
 
         Debug.Log($"Found {surfaceSpringPoints.Count} surface spring points out of {allSpringPoints.Count} total points");
+    }
+
+    public void UpdateBoundingVolume()
+    {
+        Vector3 center = transform.position;
+        float radius = GetObjectRadius();
+        boundingVolume = new Bounds(center, Vector3.one * (radius * 2f));
     }
 
     private bool IsPointOnSurface(Vector3 worldPoint)

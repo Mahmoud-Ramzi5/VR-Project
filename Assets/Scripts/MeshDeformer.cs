@@ -9,12 +9,14 @@ public class MeshDeformer : MonoBehaviour
     public float influenceRadius = 1.0f;
     public bool showWeights = false;
     public bool logSubdividedTriangles = true;
-
+    
     private Mesh originalMesh;
     private Mesh workingMesh;
     private List<WeightedInfluence>[] vertexInfluences;
     private Vector3[] baseVertices;
     private Vector3[] currentVertices;
+    private int[] baseTriangles;
+    private int[] currentTriangles;
 
     private struct TriangleData
     {
@@ -41,6 +43,8 @@ public class MeshDeformer : MonoBehaviour
 
         baseVertices = workingMesh.vertices;
         currentVertices = baseVertices.Clone() as Vector3[];
+        baseTriangles = workingMesh.triangles;
+        currentTriangles = baseTriangles.Clone() as int[];
 
         triangleDataList = new List<TriangleData>();
         int triangleCount = workingMesh.triangles.Length / 3;
@@ -557,4 +561,174 @@ public class MeshDeformer : MonoBehaviour
     }
 
 
+    public void SubdivideMeshWithPoints(Vector3[] newPoints)
+    {
+        Debug.Log(newPoints.Length);
+        if (newPoints == null || newPoints.Length == 0)
+        {
+            Debug.LogWarning("No new points supplied for subdivision.");
+            return;
+        }
+
+        // Convert current vertices to world space for distance checks
+        Vector3[] worldVertices = new Vector3[currentVertices.Length];
+        for (int i = 0; i < currentVertices.Length; i++)
+        {
+            worldVertices[i] = transform.TransformPoint(currentVertices[i]);
+        }
+
+        HashSet<int> trianglesToSubdivide = new HashSet<int>();
+
+        foreach (Vector3 point in newPoints)
+        {
+            for (int i = 0; i < currentTriangles.Length; i += 3)
+            {
+                int triangleIndex = i / 3;
+                if (triangleIndex >= triangleDataList.Count) continue;
+
+                TriangleData data = triangleDataList[triangleIndex];
+                if (!data.canSubdivide || data.subdivisionLevel >= maxSubdivisionLevel)
+                    continue;
+
+                int idx0 = currentTriangles[i];
+                int idx1 = currentTriangles[i + 1];
+                int idx2 = currentTriangles[i + 2];
+
+                Vector3 v0 = worldVertices[idx0];
+                Vector3 v1 = worldVertices[idx1];
+                Vector3 v2 = worldVertices[idx2];
+
+                Vector3 centroid = (v0 + v1 + v2) / 3f;
+                float distance = Vector3.Distance(point, centroid);
+                if (distance < influenceRadius)
+                {
+                    trianglesToSubdivide.Add(triangleIndex);
+                }
+            }
+        }
+
+        if (trianglesToSubdivide.Count > 0)
+        {
+            if (logSubdividedTriangles)
+            {
+                Debug.Log($"Subdividing {trianglesToSubdivide.Count} triangles due to collision points.");
+            }
+            SubdivideSelectedTriangles(new List<int>(trianglesToSubdivide));
+            BuildInfluenceMapping();
+        }
+        else
+        {
+            Debug.Log("No triangles found to subdivide for the given points.");
+        }
+    }
+
+    /// <summary>
+    /// Helper: Check if 2D-projected point lies inside triangle via barycentric coordinates
+    /// </summary>
+    private bool IsPointInTriangle(Vector3 p, Vector3 a, Vector3 b, Vector3 c)
+    {
+        // Note: For robustness on 3D mesh, project triangle and point onto best fitting plane.
+        // We approximate by using original 3D coordinates as is, suitable if mesh is fairly planar locally.
+
+        Vector3 v0 = c - a;
+        Vector3 v1 = b - a;
+        Vector3 v2 = p - a;
+
+        float dot00 = Vector3.Dot(v0, v0);
+        float dot01 = Vector3.Dot(v0, v1);
+        float dot02 = Vector3.Dot(v0, v2);
+        float dot11 = Vector3.Dot(v1, v1);
+        float dot12 = Vector3.Dot(v1, v2);
+
+        float denom = dot00 * dot11 - dot01 * dot01;
+
+        if (Mathf.Abs(denom) < 1e-6f)
+            return false;
+
+        float u = (dot11 * dot02 - dot01 * dot12) / denom;
+        float v = (dot00 * dot12 - dot01 * dot02) / denom;
+
+        return (u >= 0) && (v >= 0) && (u + v <= 1);
+    }
+
+    /// <summary>
+    /// Subdivide the triangle at triIndex by inserting point p as new vertex.
+    /// Modifies the triangleList and vertexList accordingly.
+    /// </summary>
+    private void SubdivideTriangleAtIndex(List<int> triangleList, List<Vector3> vertexList, int triIndex, Vector3 p)
+    {
+        int i0 = triangleList[triIndex];
+        int i1 = triangleList[triIndex + 1];
+        int i2 = triangleList[triIndex + 2];
+
+        // Add new vertex
+        int newVertexIndex = vertexList.Count;
+        vertexList.Add(p);
+
+        // Remove original triangle
+        triangleList.RemoveRange(triIndex, 3);
+
+        // Add three new triangles
+        triangleList.InsertRange(triIndex, new int[]
+        {
+            i0, i1, newVertexIndex,
+            i1, i2, newVertexIndex,
+            i2, i0, newVertexIndex
+        });
+    }
+    // Add to MeshDeformer.cs
+    public bool IsPointOnMesh(Vector3 worldPoint, float threshold = 0.01f)
+    {
+        Vector3 localPoint = transform.InverseTransformPoint(worldPoint);
+        Vector3[] vertices = workingMesh.vertices;
+        int[] triangles = workingMesh.triangles;    
+
+        for (int i = 0; i < triangles.Length; i += 3)
+        {
+            Vector3 v1 = vertices[triangles[i]];
+            Vector3 v2 = vertices[triangles[i + 1]];
+            Vector3 v3 = vertices[triangles[i + 2]];
+
+            if (PointTriangleDistance(localPoint, v1, v2, v3) <= threshold)
+                return true;
+        }
+        return false;
+    }
+
+    private float PointTriangleDistance(Vector3 point, Vector3 a, Vector3 b, Vector3 c)
+    {
+        // Calculate triangle normal
+        Vector3 normal = Vector3.Cross(b - a, c - a).normalized;
+
+        // Project point onto triangle plane
+        Vector3 planePoint = point - Vector3.Dot(point - a, normal) * normal;
+
+        // Check if projected point is inside triangle
+        if (IsPointInTriangle(planePoint, a, b, c))
+        {
+            return Vector3.Distance(point, planePoint);
+        }
+
+        // Check against edges
+        float minDistance = float.MaxValue;
+        minDistance = Mathf.Min(minDistance, PointLineSegmentDistance(point, a, b));
+        minDistance = Mathf.Min(minDistance, PointLineSegmentDistance(point, b, c));
+        minDistance = Mathf.Min(minDistance, PointLineSegmentDistance(point, c, a));
+
+        return minDistance;
+    }
+
+    
+
+    private float PointLineSegmentDistance(Vector3 p, Vector3 a, Vector3 b)
+    {
+        Vector3 ab = b - a;
+        Vector3 ap = p - a;
+
+        float lengthSqr = ab.sqrMagnitude;
+        float t = Mathf.Clamp01(Vector3.Dot(ap, ab) / lengthSqr);
+        Vector3 closest = a + t * ab;
+
+        return Vector3.Distance(p, closest);
+    }
 }

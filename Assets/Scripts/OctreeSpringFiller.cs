@@ -47,10 +47,12 @@ public class OctreeSpringFiller : MonoBehaviour
 
     // Jobs
     private SpringJobManager jobManager;
+    private MeshDeformer meshDeformer;
 
     // Debug
     public List<GameObject> objects = new List<GameObject>();
     private LineRenderer lineRenderer;
+    private bool firstSubdivision = true;
 
     private void Awake()
     {
@@ -68,6 +70,7 @@ public class OctreeSpringFiller : MonoBehaviour
 
     void Start()
     {
+        meshDeformer = GetComponent<MeshDeformer>();
         // save transform
         lastPos = transform.position;
 
@@ -230,9 +233,28 @@ public class OctreeSpringFiller : MonoBehaviour
         targetMesh.vertices = vertices;
         targetMesh.RecalculateNormals();
         targetMesh.RecalculateBounds();
-    }
+        if (firstSubdivision)
+        {
+            List<Vector3> pointsToInsert = new List<Vector3>();
+            //Debug.Log(allSpringPoints.Count);
 
-    SpringPoint FindClosestPoint(Vector3 worldPos)
+            foreach (SpringPoint sp in allSpringPoints)
+            {
+                if (meshDeformer.IsPointOnMesh(sp.position))
+                {
+                    pointsToInsert.Add(sp.position);
+                }
+            }
+            Debug.Log(pointsToInsert.Count);    
+            if (pointsToInsert.Count > 0)
+            {
+                meshDeformer.SubdivideMeshWithPoints(pointsToInsert.ToArray());
+            }
+            firstSubdivision = false;
+        }
+        }
+
+        SpringPoint FindClosestPoint(Vector3 worldPos)
     {
         SpringPoint closest = null;
         float minDist = float.MaxValue;
@@ -777,5 +799,6 @@ public class OctreeSpringFiller : MonoBehaviour
             }
         //}
     }
+
     //
 }

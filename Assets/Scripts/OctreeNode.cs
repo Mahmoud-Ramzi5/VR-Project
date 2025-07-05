@@ -14,10 +14,10 @@ public class OctreeNode
         isDivided = false;
     }
 
-    public bool Divide(float minSize)
+    public bool Divide(Vector3 minSize)
     {
         // If the node size is already small enough, do not subdivide further
-        if (worldBounds.size.x <= minSize && worldBounds.size.y <= minSize && worldBounds.size.z <= minSize)
+        if (worldBounds.size.x <= minSize.x && worldBounds.size.y <= minSize.y && worldBounds.size.z <= minSize.z)
             return false;
 
         // Initialize the array of 8 children nodes

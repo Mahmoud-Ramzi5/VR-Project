@@ -13,8 +13,8 @@ public class OctreeSpringFiller : MonoBehaviour
     public bool visualizeSpringPoints = true;
     public bool visualizeSpringConnections = true;
 
-    public float minNodeSize = 0.5f;
-    public float PointSpacing = 0.5f;
+    public Vector3 minNodeSize;
+    public Vector3 PointSpacing;
     public bool isSolid = true;
     public bool isRigid = true;
 
@@ -465,7 +465,7 @@ public class OctreeSpringFiller : MonoBehaviour
 
                 // Use approximate comparison instead of exact Contains
                 bool alreadyExists = allPointPositions.Any(p =>
-                    Vector3.Distance(p, worldPos) < PointSpacing * 0.5f);
+                    Vector3.Distance(p, worldPos) < PointSpacing.magnitude * 0.5f);
 
                 if (!alreadyExists)
                 {
@@ -482,9 +482,9 @@ public class OctreeSpringFiller : MonoBehaviour
     void FillNodeWithSpringPoints(OctreeNode node)
     {
         Bounds localBounds = node.localBounds;
-        int stepsX = Mathf.Max(2, Mathf.FloorToInt(localBounds.size.x / PointSpacing));
-        int stepsY = Mathf.Max(2, Mathf.FloorToInt(localBounds.size.y / PointSpacing));
-        int stepsZ = Mathf.Max(2, Mathf.FloorToInt(localBounds.size.z / PointSpacing));
+        int stepsX = Mathf.Max(2, Mathf.FloorToInt(localBounds.size.x / PointSpacing.x));
+        int stepsY = Mathf.Max(2, Mathf.FloorToInt(localBounds.size.y / PointSpacing.y));
+        int stepsZ = Mathf.Max(2, Mathf.FloorToInt(localBounds.size.z / PointSpacing.z));
 
         for (int x = 0; x < stepsX; x++)
         {
@@ -511,7 +511,7 @@ public class OctreeSpringFiller : MonoBehaviour
 
                     // Use approximate comparison instead of exact Contains
                     bool alreadyExists = allPointPositions.Any(p =>
-                        Vector3.Distance(p, worldPos) < PointSpacing * 0.5f);
+                        Vector3.Distance(p, worldPos) < PointSpacing.magnitude * 0.5f);
 
                     if (!alreadyExists)
                     {
@@ -621,7 +621,7 @@ public class OctreeSpringFiller : MonoBehaviour
                 float distance = Vector3.Distance(currentPoint.position, otherPoint.position);
 
                 // Connect if within radius and not already connected
-                if (distance <= connectionRadiusL1 * PointSpacing && !IsConnected(currentPoint, otherPoint))
+                if (distance <= connectionRadiusL1 * PointSpacing.magnitude && !IsConnected(currentPoint, otherPoint))
                 {
                     // Clamp rest length to reasonable values
                     float restLength = Mathf.Clamp(distance, 0.5f, maxRestLengthL1);
@@ -629,7 +629,7 @@ public class OctreeSpringFiller : MonoBehaviour
                     SpringConnection c = new SpringConnection(currentPoint, otherPoint, restLength, springConstantL1, damperConstantL1);
                     allSpringConnections.Add(c);
                 }
-                else if (distance <= connectionRadiusL2 * PointSpacing && !IsConnected(currentPoint, otherPoint))
+                else if (distance <= connectionRadiusL2 * PointSpacing.magnitude && !IsConnected(currentPoint, otherPoint))
                 {
                     // Clamp rest length to reasonable values
                     float restLength = Mathf.Clamp(distance, 0.5f, maxRestLengthL2);
@@ -637,7 +637,7 @@ public class OctreeSpringFiller : MonoBehaviour
                     SpringConnection c = new SpringConnection(currentPoint, otherPoint, restLength, springConstantL2, damperConstantL2);
                     allSpringConnections.Add(c);
                 }
-                else if (distance <= connectionRadiusL3 * PointSpacing && !IsConnected(currentPoint, otherPoint))
+                else if (distance <= connectionRadiusL3 * PointSpacing.magnitude && !IsConnected(currentPoint, otherPoint))
                 {
                     // Clamp rest length to reasonable values
                     float restLength = Mathf.Clamp(distance, 0.5f, maxRestLengthL3);

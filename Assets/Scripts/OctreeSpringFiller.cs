@@ -230,9 +230,7 @@ public class OctreeSpringFiller : MonoBehaviour
         }
 
         // Apply changes to mesh
-        targetMesh.vertices = vertices;
-        targetMesh.RecalculateNormals();
-        targetMesh.RecalculateBounds();
+       
         if (firstSubdivision)
         {
             List<Vector3> pointsToInsert = new List<Vector3>();

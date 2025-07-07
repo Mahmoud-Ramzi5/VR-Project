@@ -243,7 +243,7 @@ public class MeshDeformer : MonoBehaviour
         }
     }
 
-    private void SubdivideSelectedTriangles(List<int> triangleIndices)
+    private void SubdivideSelectedTriangles(List<int> triangleIndices, bool create = true)
     {
         Vector3[] oldVertices = workingMesh.vertices;
         int[] oldTriangles = workingMesh.triangles;
@@ -320,9 +320,9 @@ public class MeshDeformer : MonoBehaviour
             int i1 = oldTriangles[triIdx * 3 + 1];
             int i2 = oldTriangles[triIdx * 3 + 2];
 
-            GetMidpoint(i0, i1, oldVertices, newVertices, edgeMidpoints);
-            GetMidpoint(i1, i2, oldVertices, newVertices, edgeMidpoints);
-            GetMidpoint(i2, i0, oldVertices, newVertices, edgeMidpoints);
+            GetMidpoint(i0, i1, oldVertices, newVertices, edgeMidpoints,create);
+            GetMidpoint(i1, i2, oldVertices, newVertices, edgeMidpoints,create);
+            GetMidpoint(i2, i0, oldVertices, newVertices, edgeMidpoints,create);
         }
 
         // Rebuild all triangles
@@ -458,7 +458,7 @@ public class MeshDeformer : MonoBehaviour
         edgeToTriangles[edge].Add(triangleIdx);
     }
 
-    private int GetMidpoint(int a, int b, Vector3[] verts, List<Vector3> newVerts, Dictionary<Edge, int> midpoints)
+    private int GetMidpoint(int a, int b, Vector3[] verts, List<Vector3> newVerts, Dictionary<Edge, int> midpoints,bool create = true)
     {
         Edge edge = new Edge(a, b, verts);
         if (midpoints.TryGetValue(edge, out int index)) return index;
@@ -469,9 +469,12 @@ public class MeshDeformer : MonoBehaviour
         midpoints.Add(edge, newIndex);
 
         Vector3 worldPos = transform.TransformPoint(mid);
-        springFiller.AddSpringPointAtPosition(worldPos);
+        if (create)
+        {
+            springFiller.AddSpringPointAtPosition(worldPos);
+        }
 
-        return newIndex;
+            return newIndex;
     }
     void BuildInfluenceMapping()
     {
@@ -613,8 +616,13 @@ public class MeshDeformer : MonoBehaviour
             {
                 Debug.Log($"Subdividing {trianglesToSubdivide.Count} triangles due to collision points.");
             }
-            SubdivideSelectedTriangles(new List<int>(trianglesToSubdivide));
-            BuildInfluenceMapping();
+            int iterations = (int)Mathf.Pow(newPoints.Length, 1.0f / 3.0f);
+            for (int i = 0; i < iterations; ++i)
+            {
+                SubdivideSelectedTriangles(new List<int>(trianglesToSubdivide), false);
+           
+            }
+
         }
         else
         {
@@ -677,7 +685,7 @@ public class MeshDeformer : MonoBehaviour
         });
     }
     // Add to MeshDeformer.cs
-    public bool IsPointOnMesh(Vector3 worldPoint, float threshold = 0.01f)
+    public bool IsPointOnMesh(Vector3 worldPoint, float threshold = 0.1f)
     {
         Vector3 localPoint = transform.InverseTransformPoint(worldPoint);
         Vector3[] vertices = workingMesh.vertices;

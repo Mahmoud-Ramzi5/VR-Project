@@ -28,45 +28,47 @@ public class CollisionManager : MonoBehaviour
     /// </summary>
     public void ResolveInterObjectCollisions()
     {
-        if (!enableInterObjectCollision) return;
-
-        // Reset stats for the frame
-        totalCollisionsThisFrame = 0;
-        if (showCollisionGizmos)
-        {
-            lastFrameCollisions.Clear();
-        }
-
-        // --- The main collision detection loop ---
         for (int i = 0; i < AllSoftBodies.Count; i++)
         {
             OctreeSpringFiller obj1 = AllSoftBodies[i];
-            if (!obj1.gameObject.activeInHierarchy || obj1.surfacePointsLocalSpace.Count == 0) continue;
+            obj1.UpdateBoundingVolume();
 
             for (int j = i + 1; j < AllSoftBodies.Count; j++)
             {
                 OctreeSpringFiller obj2 = AllSoftBodies[j];
-                if (!obj2.gameObject.activeInHierarchy || obj2.surfacePointsLocalSpace.Count == 0) continue;
-
-                // 1. BROAD-PHASE: AABB Check (Efficiently discard distant pairs)
-                obj1.UpdateBoundingVolume();
                 obj2.UpdateBoundingVolume();
 
                 if (!obj1.boundingVolume.Intersects(obj2.boundingVolume)) continue;
 
-                // 2. NARROW-PHASE: GJK Algorithm (Precise check for colliding pairs)
                 if (GJK.DetectCollision(obj1, obj2, out CollisionInfo info))
                 {
-                    // 3. COLLISION RESPONSE: Apply physics based on GJK/EPA results
-                    HandleGJKCollisionResponse(obj1, obj2, info);
-
-                    totalCollisionsThisFrame++;
-                    if (showCollisionGizmos)
-                    {
-                        lastFrameCollisions.Add(info);
-                    }
+                    HandleCollisionPair(obj1, obj2, info);
                 }
             }
+        }
+    }
+
+    private void HandleCollisionPair(OctreeSpringFiller obj1, OctreeSpringFiller obj2, CollisionInfo info)
+    {
+        obj1.HandleCollisionResponse(info, obj2);
+        obj2.HandleCollisionResponse(new CollisionInfo
+        {
+            Normal = -info.Normal,
+            Depth = info.Depth
+        }, obj1);
+
+        //TriggerMeshDeformation(obj1, obj2);
+    }
+
+    private void TriggerMeshDeformation(OctreeSpringFiller obj1, OctreeSpringFiller obj2)
+    {
+        if (obj1.TryGetComponent<MeshDeformer>(out var deformer1))
+        {
+            deformer1.HandleCollisionPoints(obj1.GetSurfacePointsInCollision(obj2));
+        }
+        if (obj2.TryGetComponent<MeshDeformer>(out var deformer2))
+        {
+            deformer2.HandleCollisionPoints(obj2.GetSurfacePointsInCollision(obj1));
         }
     }
 

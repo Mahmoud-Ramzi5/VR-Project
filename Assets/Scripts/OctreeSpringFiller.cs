@@ -1010,4 +1010,45 @@ public class OctreeSpringFiller : MonoBehaviour
             }
         }
     }
+    public void HandleCollisionResponse(CollisionInfo info, OctreeSpringFiller other)
+    {
+        foreach (SpringPoint point in this.SurfacePoints)
+        {
+            Vector3 otherLocal = other.transform.InverseTransformPoint(point.position);
+
+            if (other.IsPointInside(otherLocal))
+            {
+                // Position correction
+                point.position += info.Normal * (info.Depth + 0.01f);
+
+                // Velocity response
+                float velAlongNormal = Vector3.Dot(point.velocity, info.Normal);
+                if (velAlongNormal < 0)
+                {
+                    point.velocity -= (1 + groundBounce) * velAlongNormal * info.Normal;
+                    Vector3 tangentVel = point.velocity - velAlongNormal * info.Normal;
+                    point.velocity = tangentVel * (1 - groundFriction);
+                }
+            }
+        }
+    }
+
+    public bool IsPointInside(Vector3 localPoint)
+    {
+        if (!meshBounds.Contains(localPoint)) return false;
+        return IsPointInsideMesh(transform.TransformPoint(localPoint));
+    }
+
+    public List<Vector3> GetSurfacePointsInCollision(OctreeSpringFiller other)
+    {
+        List<Vector3> points = new List<Vector3>();
+        foreach (var point in SurfacePoints)
+        {
+            if (other.IsPointInside(other.transform.InverseTransformPoint(point.position)))
+            {
+                points.Add(point.position);
+            }
+        }
+        return points;
+    }
 }

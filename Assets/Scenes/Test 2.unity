@@ -132,7 +132,6 @@ GameObject:
   - component: {fileID: 111400012}
   - component: {fileID: 111400011}
   - component: {fileID: 111400015}
-  - component: {fileID: 111400016}
   m_Layer: 0
   m_Name: Cube (8)
   m_TagString: Untagged
@@ -168,8 +167,10 @@ MonoBehaviour:
   groundBounce: 0.5
   groundFriction: 0.8
   applyGroundCollision: 0
-  collisionManager: {fileID: 0}
+  collisionManager: {fileID: 1133259029}
   objects: []
+  convexHullVertices: []
+  surfacePointsLocalSpace: []
   surfaceDetectionThreshold: 0.2
   enableMeshSubdivision: 1
   autoUpdateMeshFromSurface: 1
@@ -263,37 +264,6 @@ MonoBehaviour:
   influenceRadius: 1
   showWeights: 0
   logSubdividedTriangles: 1
---- !u!114 &111400016
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 111400010}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 575baa8b5649be846b5a68fef97e570f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  enableInterObjectCollision: 1
-  interObjectCollisionRadius: 1
-  collisionLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  coefficientOfRestitution: 0.6
-  coefficientOfFriction: 0.4
-  useElasticCollision: 1
-  useInelasticCollision: 0
-  useMaterialProperties: 0
-  penetrationCorrection: 0.8
-  velocityThreshold: 0
-  separationForce: 150
-  dampingFactor: 0.98
-  useSpatialHashing: 0
-  spatialHashCellSize: 2
-  totalCollisionsThisFrame: 0
-  showCollisionGizmos: 1
-  verboseDebugLog: 1
 --- !u!1 &154078062
 GameObject:
   m_ObjectHideFlags: 0
@@ -429,6 +399,8 @@ MonoBehaviour:
   applyGroundCollision: 1
   collisionManager: {fileID: 0}
   objects: []
+  convexHullVertices: []
+  surfacePointsLocalSpace: []
   surfaceDetectionThreshold: 0.2
   enableMeshSubdivision: 1
   autoUpdateMeshFromSurface: 1
@@ -674,6 +646,8 @@ MonoBehaviour:
   applyGroundCollision: 1
   collisionManager: {fileID: 0}
   objects: []
+  convexHullVertices: []
+  surfacePointsLocalSpace: []
   surfaceDetectionThreshold: 0.2
   enableMeshSubdivision: 1
   autoUpdateMeshFromSurface: 1
@@ -843,6 +817,8 @@ MonoBehaviour:
   applyGroundCollision: 1
   collisionManager: {fileID: 0}
   objects: []
+  convexHullVertices: []
+  surfacePointsLocalSpace: []
   surfaceDetectionThreshold: 0.2
   enableMeshSubdivision: 1
   autoUpdateMeshFromSurface: 1
@@ -967,6 +943,8 @@ MonoBehaviour:
   applyGroundCollision: 1
   collisionManager: {fileID: 0}
   objects: []
+  convexHullVertices: []
+  surfacePointsLocalSpace: []
   surfaceDetectionThreshold: 0.2
   enableMeshSubdivision: 1
   autoUpdateMeshFromSurface: 1
@@ -1159,6 +1137,8 @@ MonoBehaviour:
   applyGroundCollision: 1
   collisionManager: {fileID: 0}
   objects: []
+  convexHullVertices: []
+  surfacePointsLocalSpace: []
   surfaceDetectionThreshold: 0.2
   enableMeshSubdivision: 1
   autoUpdateMeshFromSurface: 1
@@ -1332,7 +1312,6 @@ GameObject:
   - component: {fileID: 968068586}
   - component: {fileID: 968068585}
   - component: {fileID: 968068589}
-  - component: {fileID: 968068590}
   m_Layer: 0
   m_Name: Cube (9)
   m_TagString: Untagged
@@ -1368,8 +1347,10 @@ MonoBehaviour:
   groundBounce: 0.5
   groundFriction: 0.8
   applyGroundCollision: 1
-  collisionManager: {fileID: 0}
+  collisionManager: {fileID: 1133259029}
   objects: []
+  convexHullVertices: []
+  surfacePointsLocalSpace: []
   surfaceDetectionThreshold: 0.2
   enableMeshSubdivision: 1
   autoUpdateMeshFromSurface: 1
@@ -1463,37 +1444,57 @@ MonoBehaviour:
   influenceRadius: 1
   showWeights: 0
   logSubdividedTriangles: 1
---- !u!114 &968068590
+--- !u!1 &1133259028
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1133259030}
+  - component: {fileID: 1133259029}
+  m_Layer: 0
+  m_Name: CollisionManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1133259029
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 968068584}
+  m_GameObject: {fileID: 1133259028}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 575baa8b5649be846b5a68fef97e570f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   enableInterObjectCollision: 1
-  interObjectCollisionRadius: 1
-  collisionLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  coefficientOfRestitution: 1
-  coefficientOfFriction: 1
-  useElasticCollision: 1
-  useInelasticCollision: 0
-  useMaterialProperties: 0
-  penetrationCorrection: 0.8
-  velocityThreshold: 0
-  separationForce: 150
-  dampingFactor: 0.98
-  useSpatialHashing: 0
-  spatialHashCellSize: 2
+  coefficientOfRestitution: 0.6
+  coefficientOfFriction: 0.4
+  penetrationCorrectionFactor: 0.6
+  penetrationSlop: 0.01
   totalCollisionsThisFrame: 0
-  showCollisionGizmos: 1
-  verboseDebugLog: 1
+  showCollisionGizmos: 0
+--- !u!4 &1133259030
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1133259028}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1320767100
 GameObject:
   m_ObjectHideFlags: 0
@@ -1543,6 +1544,8 @@ MonoBehaviour:
   applyGroundCollision: 1
   collisionManager: {fileID: 0}
   objects: []
+  convexHullVertices: []
+  surfacePointsLocalSpace: []
   surfaceDetectionThreshold: 0.2
   enableMeshSubdivision: 1
   autoUpdateMeshFromSurface: 1
@@ -1831,3 +1834,4 @@ SceneRoots:
   - {fileID: 1320767104}
   - {fileID: 111400014}
   - {fileID: 968068588}
+  - {fileID: 1133259030}

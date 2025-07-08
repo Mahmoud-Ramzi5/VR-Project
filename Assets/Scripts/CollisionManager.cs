@@ -48,17 +48,6 @@ public class CollisionManager : MonoBehaviour
         }
     }
 
-    private void HandleCollisionPair(OctreeSpringFiller obj1, OctreeSpringFiller obj2, CollisionInfo info)
-    {
-        obj1.HandleCollisionResponse(info, obj2);
-        obj2.HandleCollisionResponse(new CollisionInfo
-        {
-            Normal = -info.Normal,
-            Depth = info.Depth
-        }, obj1);
-
-        //TriggerMeshDeformation(obj1, obj2);
-    }
 
     private void TriggerMeshDeformation(OctreeSpringFiller obj1, OctreeSpringFiller obj2)
     {
@@ -75,6 +64,25 @@ public class CollisionManager : MonoBehaviour
     /// <summary>
     /// Handles the physics response for two colliding objects using the data from GJK/EPA.
     /// </summary>
+    private void HandleCollisionPair(OctreeSpringFiller obj1, OctreeSpringFiller obj2, CollisionInfo info)
+    {
+        // Apply the actual physics response (this was commented out)
+        HandleGJKCollisionResponse(obj1, obj2, info);
+
+        // Also apply the per-point collision response
+        obj1.HandleCollisionResponse(info, obj2);
+        obj2.HandleCollisionResponse(new CollisionInfo
+        {
+            Normal = -info.Normal,
+            Depth = info.Depth,
+            DidCollide = true
+        }, obj1);
+
+        // Optional: Trigger mesh deformation
+        TriggerMeshDeformation(obj1, obj2);
+    }
+
+    // Make this method private (it was already correct, just noting the visibility)
     private void HandleGJKCollisionResponse(OctreeSpringFiller obj1, OctreeSpringFiller obj2, CollisionInfo info)
     {
         // --- 1. Calculate Relative Velocity ---
@@ -93,7 +101,7 @@ public class CollisionManager : MonoBehaviour
         float invMass2 = (totalMass2 > 0) ? 1.0f / totalMass2 : 0.0f;
 
         // Use the smaller coefficient of restitution
-        float e = coefficientOfRestitution; // Simplified for now
+        float e = coefficientOfRestitution;
 
         // Impulse scalar formula
         float j = -(1 + e) * velocityAlongNormal;

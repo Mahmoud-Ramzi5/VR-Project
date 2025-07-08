@@ -151,29 +151,15 @@ public class OctreeSpringFiller : MonoBehaviour
         // Initial connection data setup
         jobManager.UpdateConnectionData(allSpringConnections);
 
-    }
-
-    private void GenerateConvexHull()
-    {
-        if (surfaceSpringPoints == null || surfaceSpringPoints.Count == 0)
+        if (collisionManager == null)
         {
-            Debug.LogWarning("No surface points to generate a convex hull from.");
-            convexHullVertices = new List<Vector3>();
-            return;
+            collisionManager = FindObjectOfType<CollisionManager>();
+            if (collisionManager == null)
+            {
+                Debug.LogWarning($"{gameObject.name}: No CollisionManager found in scene!");
+            }
         }
 
-        // We will generate the hull in LOCAL space so it can move with the object.
-        var localSurfacePoints = new List<Vector3>();
-        foreach (var sp in surfaceSpringPoints)
-        {
-            localSurfacePoints.Add(transform.InverseTransformPoint(sp.initialPosition));
-        }
-
-        // A simple (but not perfectly robust) convex hull algorithm is the Gift Wrapping algorithm.
-        // For production, a more robust Quickhull implementation is recommended.
-        // For now, we can just use the surface points directly as a point cloud for the support function.
-        convexHullVertices = localSurfacePoints;
-        Debug.Log($"Generated a convex hull representation with {convexHullVertices.Count} vertices.");
     }
 
 

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using static UnityEngine.GraphicsBuffer;
 
 public class Menu2 : MenuDataBinderBase
 {
@@ -8,6 +9,29 @@ public class Menu2 : MenuDataBinderBase
     public Toggle Show_connections;
     public Toggle Is_rigid;
     public Toggle Is_solid;
+
+
+    // Option 1: Initialize when UI becomes active (recommended)
+    void Start()
+    {
+        OctreeSpringFiller springFiller = FindObjectOfType<OctreeSpringFiller>();
+        if (springFiller != null)
+        {
+            InitializeToggles(springFiller);
+        }
+    }
+
+    // Initialize toggle states based on target values
+    public void InitializeToggles(OctreeSpringFiller target)
+    {
+        if (target == null) return;
+
+        Apply_gravity.isOn = target.applyGravity;
+        Show_points.isOn = target.visualizeSpringPoints;
+        Show_connections.isOn = target.visualizeSpringConnections;
+        Is_rigid.isOn = target.isRigid;
+        Is_solid.isOn = target.isSolid;
+    }
 
     public override void ApplyTo(OctreeSpringFiller target)
     {

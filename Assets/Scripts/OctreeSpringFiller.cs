@@ -202,9 +202,7 @@ public class OctreeSpringFiller : MonoBehaviour
 
     void UpdateMeshFromPoints()
     {
-        Vector3[] vertices = meshVertices;
-
-        // Find average position of all points
+        // 1. Calculate average position without moving transform yet
         Vector3 averagePos = Vector3.zero;
         foreach (var point in allSpringPoints)
         {
@@ -212,30 +210,58 @@ public class OctreeSpringFiller : MonoBehaviour
         }
         averagePos /= allSpringPoints.Count;
 
-        // Update mesh position to follow points
-        transform.position = averagePos;
+        // 2. Update mesh vertices first (in world space)
+        Vector3[] vertices = targetMesh.vertices;
+        bool needsUpdate = false;
 
-        // Update each vertex based on its corresponding point
         for (int i = 0; i < vertices.Length; i++)
         {
-            // Find closest spring point to this vertex
             Vector3 worldVertex = transform.TransformPoint(vertices[i]);
             SpringPoint closestPoint = FindClosestPoint(worldVertex);
-           
+
             if (closestPoint != null)
             {
-                // Update vertex position relative to new mesh position
-                vertices[i] = transform.InverseTransformPoint(closestPoint.position);
+                // Maintain relative position to closest point
+                Vector3 newWorldPos = closestPoint.position;
+                vertices[i] = transform.InverseTransformPoint(newWorldPos);
+                needsUpdate = true;
             }
         }
 
-        // Apply changes to mesh
-       
+        // 3. Only update mesh if vertices changed
+        if (needsUpdate)
+        {
+            targetMesh.vertices = vertices;
+            targetMesh.RecalculateNormals();
+            targetMesh.RecalculateBounds();
+        }
+
+        // 4. Now move the transform to average position
+        Vector3 moveVector = averagePos - transform.position;
+        transform.position = averagePos;
+
+        // 5. Update spring points' world positions (without changing their relative positions)
+        foreach (SpringPoint point in allSpringPoints)
+        {
+            point.position -= moveVector;
+            point.initialPosition -= moveVector;
+
+            // Special handling for ground collision points
+            if (applyGroundCollision && point.position.y < groundLevel)
+            {
+                point.position.y = groundLevel;
+                point.velocity.y *= -groundBounce;
+                point.velocity.x *= groundFriction;
+                point.velocity.z *= groundFriction;
+            }
+
+            point.UpdateBounds(moveVector);
+        }
+
+        // 6. Handle first subdivision
         if (firstSubdivision)
         {
             List<Vector3> pointsToInsert = new List<Vector3>();
-            //Debug.Log(allSpringPoints.Count);
-
             foreach (SpringPoint sp in allSpringPoints)
             {
                 if (meshDeformer.IsPointOnMesh(sp.position))
@@ -243,16 +269,19 @@ public class OctreeSpringFiller : MonoBehaviour
                     pointsToInsert.Add(sp.position);
                 }
             }
-            Debug.Log(pointsToInsert.Count);    
+
             if (pointsToInsert.Count > 0)
             {
                 meshDeformer.SubdivideMeshWithPoints(pointsToInsert.ToArray());
+
+                // Immediately update new vertices to match spring points
+                UpdateMeshFromPoints();
             }
             firstSubdivision = false;
         }
-        }
+    }
 
-        SpringPoint FindClosestPoint(Vector3 worldPos)
+    SpringPoint FindClosestPoint(Vector3 worldPos)
     {
         SpringPoint closest = null;
         float minDist = float.MaxValue;

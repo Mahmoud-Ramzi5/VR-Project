@@ -566,7 +566,6 @@ public class MeshDeformer : MonoBehaviour
 
     public void SubdivideMeshWithPoints(Vector3[] newPoints)
     {
-        Debug.Log(newPoints.Length);
         if (newPoints == null || newPoints.Length == 0)
         {
             Debug.LogWarning("No new points supplied for subdivision.");
@@ -580,54 +579,99 @@ public class MeshDeformer : MonoBehaviour
             worldVertices[i] = transform.TransformPoint(currentVertices[i]);
         }
 
-        HashSet<int> trianglesToSubdivide = new HashSet<int>();
+        // Create a list to track triangles that need subdivision
+        List<int> trianglesToSubdivide = new List<int>();
 
-        foreach (Vector3 point in newPoints)
+        // First pass: Identify triangles with more than 3 spring points
+        for (int i = 0; i < currentTriangles.Length; i += 3)
         {
-            for (int i = 0; i < currentTriangles.Length; i += 3)
-            {
-                int triangleIndex = i / 3;
-                if (triangleIndex >= triangleDataList.Count) continue;
+            int triangleIndex = i / 3;
+            if (triangleIndex >= triangleDataList.Count) continue;
 
-                TriangleData data = triangleDataList[triangleIndex];
+            TriangleData data = triangleDataList[triangleIndex];
+            if (!data.canSubdivide || data.subdivisionLevel >= maxSubdivisionLevel)
+                continue;
+
+            int idx0 = currentTriangles[i];
+            int idx1 = currentTriangles[i + 1];
+            int idx2 = currentTriangles[i + 2];
+
+            Vector3 v0 = worldVertices[idx0];
+            Vector3 v1 = worldVertices[idx1];
+            Vector3 v2 = worldVertices[idx2];
+            Vector3 centroid = (v0 + v1 + v2) / 3f;
+
+            // Count spring points near this triangle
+            int springPointCount = 0;
+            foreach (Vector3 point in newPoints)
+            {
+                if (Vector3.Distance(point, centroid) < influenceRadius)
+                {
+                    springPointCount++;
+                }
+            }
+
+            if (springPointCount > 3)
+            {
+                trianglesToSubdivide.Add(triangleIndex);
+            }
+        }
+
+        // Recursively subdivide problem triangles
+        while (trianglesToSubdivide.Count > 0)
+        {
+            // Create a copy of triangles to process in this iteration
+            List<int> currentBatch = new List<int>(trianglesToSubdivide);
+            trianglesToSubdivide.Clear();
+
+            // Subdivide all marked triangles
+            SubdivideSelectedTriangles(currentBatch, false);
+
+            // Update world vertices after subdivision
+            worldVertices = new Vector3[currentVertices.Length];
+            for (int i = 0; i < currentVertices.Length; i++)
+            {
+                worldVertices[i] = transform.TransformPoint(currentVertices[i]);
+            }
+
+            // Check newly created triangles
+            for (int i = triangleDataList.Count - currentBatch.Count * 4; i < triangleDataList.Count; i++)
+            {
+                TriangleData data = triangleDataList[i];
                 if (!data.canSubdivide || data.subdivisionLevel >= maxSubdivisionLevel)
                     continue;
 
-                int idx0 = currentTriangles[i];
-                int idx1 = currentTriangles[i + 1];
-                int idx2 = currentTriangles[i + 2];
+                int triStart = i * 3;
+                if (triStart + 2 >= currentTriangles.Length) continue;
+
+                int idx0 = currentTriangles[triStart];
+                int idx1 = currentTriangles[triStart + 1];
+                int idx2 = currentTriangles[triStart + 2];
 
                 Vector3 v0 = worldVertices[idx0];
                 Vector3 v1 = worldVertices[idx1];
                 Vector3 v2 = worldVertices[idx2];
-
                 Vector3 centroid = (v0 + v1 + v2) / 3f;
-                float distance = Vector3.Distance(point, centroid);
-                if (distance < influenceRadius)
+
+                // Count spring points near this new triangle
+                int springPointCount = 0;
+                foreach (Vector3 point in newPoints)
                 {
-                    trianglesToSubdivide.Add(triangleIndex);
+                    if (Vector3.Distance(point, centroid) < influenceRadius)
+                    {
+                        springPointCount++;
+                    }
+                }
+
+                if (springPointCount > 3)
+                {
+                    trianglesToSubdivide.Add(i);
                 }
             }
         }
 
-        if (trianglesToSubdivide.Count > 0)
-        {
-            if (logSubdividedTriangles)
-            {
-                Debug.Log($"Subdividing {trianglesToSubdivide.Count} triangles due to collision points.");
-            }
-            int iterations = (int)Mathf.Pow(newPoints.Length, 1.0f / 3.0f);
-            for (int i = 0; i < iterations; ++i)
-            {
-                SubdivideSelectedTriangles(new List<int>(trianglesToSubdivide), false);
-           
-            }
-
-        }
-        else
-        {
-            Debug.Log("No triangles found to subdivide for the given points.");
-        }
+        // Rebuild influence mapping after subdivision
+        BuildInfluenceMapping();
     }
 
     /// <summary>

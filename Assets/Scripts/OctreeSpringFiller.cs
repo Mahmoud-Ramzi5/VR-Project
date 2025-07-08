@@ -68,6 +68,9 @@ public class OctreeSpringFiller : MonoBehaviour
         lineRenderer.endWidth = 0.02f;
     }
 
+
+    private List<SpringPoint> surfacePoints = new List<SpringPoint>();
+
     void Start()
     {
         meshDeformer = GetComponent<MeshDeformer>();
@@ -90,7 +93,10 @@ public class OctreeSpringFiller : MonoBehaviour
             point.mass = totalMass / allSpringPoints.Count;
             Vector3 moveStep = transform.position - lastPos;
             point.UpdateBounds(moveStep);
+            
         }
+
+
 
 
         // Use Jobs to calculate physics on GPU threads
@@ -217,7 +223,7 @@ public class OctreeSpringFiller : MonoBehaviour
         for (int i = 0; i < vertices.Length; i++)
         {
             Vector3 worldVertex = transform.TransformPoint(vertices[i]);
-            SpringPoint closestPoint = FindClosestPoint(worldVertex);
+            SpringPoint closestPoint = FindClosestSurfacePoint(worldVertex);
 
             if (closestPoint != null)
             {
@@ -261,6 +267,15 @@ public class OctreeSpringFiller : MonoBehaviour
         // 6. Handle first subdivision
         if (firstSubdivision)
         {
+            foreach (SpringPoint point in allSpringPoints)
+            {
+                
+                if (meshDeformer.IsPointOnMesh(point.position))
+                {
+                    surfacePoints.Add(point);
+                    Debug.Log("okay");
+                }
+            }
             List<Vector3> pointsToInsert = new List<Vector3>();
             foreach (SpringPoint sp in allSpringPoints)
             {
@@ -293,6 +308,23 @@ public class OctreeSpringFiller : MonoBehaviour
             }
         }
 
+        return closest;
+    }
+    SpringPoint FindClosestSurfacePoint(Vector3 worldPos)
+    {
+        SpringPoint closest = null;
+        float minDist = float.MaxValue;
+
+        foreach (var point in surfacePoints)
+        {
+            float dist = Vector3.Distance(worldPos, point.position);
+            if (dist < minDist)
+            {
+                minDist = dist;
+                closest = point;
+            }
+        }
+        Debug.Log("count");
         return closest;
     }
 
@@ -419,7 +451,9 @@ public class OctreeSpringFiller : MonoBehaviour
                     if (IsPointInsideMesh(worldPos))
                     {
                         allPointPositions.Add(worldPos);
-                        CreateSpringPoint(worldPos, node.worldBounds, true);
+                        SpringPoint point = CreateSpringPoint(worldPos, node.worldBounds, true);
+                        surfacePoints.Add(point);
+                        Debug.Log("okay");
                     }
                 }
             }

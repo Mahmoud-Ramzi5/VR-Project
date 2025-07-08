@@ -8,6 +8,13 @@ public class CollisionManager : MonoBehaviour
     [Header("Inter-Object Collision Settings")]
     public bool enableInterObjectCollision = true;
 
+    [Header("Contact-Point Response")]
+    public bool enableContactPointResponse = true;
+    public float contactRadius = 1.0f;              // How far from contact point to apply forces
+    public float contactInfluenceFalloff = 2.0f;    // How quickly influence drops with distance (higher = sharper falloff)
+    public int maxContactsPerCollision = 8;         // Limit contacts for performance
+
+
     [Header("Collision Response")]
     [Range(0f, 1f)]
     public float coefficientOfRestitution = 0.6f;
@@ -22,12 +29,34 @@ public class CollisionManager : MonoBehaviour
     public bool showCollisionGizmos = false;
     private List<CollisionInfo> lastFrameCollisions = new List<CollisionInfo>();
 
+    // Debug visualization
+    [Header("Debug Visualization")]
+    public bool showContactPoints = true;
+    public bool showInfluenceRadius = true;
+    public bool logCollisionDetails = false;
+
+    private List<ContactPoint> currentFrameContacts = new List<ContactPoint>();
+
+    private struct ContactPoint
+    {
+        public Vector3 worldPosition;
+        public Vector3 normal;
+        public float penetrationDepth;
+        public float impactVelocity;
+        public SpringPoint point1;  // Point from object 1 involved in contact
+        public SpringPoint point2;  // Point from object 2 involved in contact
+        public float influenceRadius;
+    }
 
     /// <summary>
     /// This is now the primary collision resolution method called in FixedUpdate.
     /// </summary>
     public void ResolveInterObjectCollisions()
     {
+        if (!enableInterObjectCollision) return;
+
+        currentFrameContacts.Clear();
+
         for (int i = 0; i < AllSoftBodies.Count; i++)
         {
             OctreeSpringFiller obj1 = AllSoftBodies[i];
@@ -42,10 +71,298 @@ public class CollisionManager : MonoBehaviour
 
                 if (GJK.DetectCollision(obj1, obj2, out CollisionInfo info))
                 {
-                    HandleCollisionPair(obj1, obj2, info);
+                    if (enableContactPointResponse)
+                    {
+                        HandleContactPointCollision(obj1, obj2, info);
+                    }
+                    else
+                    {
+                        HandleGlobalCollision(obj1, obj2, info);
+                    }
                 }
             }
         }
+    }
+    private void HandleContactPointCollision(OctreeSpringFiller obj1, OctreeSpringFiller obj2, CollisionInfo info)
+    {
+        // Find all contact points between the two objects
+        List<ContactPoint> contacts = FindContactPoints(obj1, obj2, info);
+
+        if (logCollisionDetails)
+        {
+            Debug.Log($"Collision between {obj1.name} and {obj2.name}: {contacts.Count} contact points found");
+        }
+
+        // Apply response at each contact point
+        foreach (var contact in contacts)
+        {
+            ApplyContactPointResponse(obj1, obj2, contact);
+            currentFrameContacts.Add(contact); // For debug visualization
+        }
+    }
+
+    private List<ContactPoint> FindContactPoints(OctreeSpringFiller obj1, OctreeSpringFiller obj2, CollisionInfo info)
+    {
+        List<ContactPoint> contacts = new List<ContactPoint>();
+
+        // Method 1: Find surface points of obj1 that are penetrating obj2
+        foreach (var point1 in obj1.SurfacePoints)
+        {
+            Vector3 localPoint = obj2.transform.InverseTransformPoint(point1.position);
+            if (obj2.IsPointInside(localPoint))
+            {
+                // Find the closest surface point on obj2 to determine contact details
+                SpringPoint closestPoint2 = FindClosestSurfacePoint(obj2, point1.position);
+                if (closestPoint2 != null)
+                {
+                    float penetration = Vector3.Distance(point1.position, closestPoint2.position);
+                    Vector3 contactNormal = (point1.position - closestPoint2.position).normalized;
+
+                    // Calculate impact velocity
+                    Vector3 relativeVel = point1.velocity - closestPoint2.velocity;
+                    float impactSpeed = Vector3.Dot(relativeVel, contactNormal);
+
+                    contacts.Add(new ContactPoint
+                    {
+                        worldPosition = Vector3.Lerp(point1.position, closestPoint2.position, 0.5f),
+                        normal = contactNormal,
+                        penetrationDepth = penetration,
+                        impactVelocity = impactSpeed,
+                        point1 = point1,
+                        point2 = closestPoint2,
+                        influenceRadius = contactRadius
+                    });
+                }
+            }
+        }
+
+        // Method 2: Find surface points of obj2 that are penetrating obj1
+        foreach (var point2 in obj2.SurfacePoints)
+        {
+            Vector3 localPoint = obj1.transform.InverseTransformPoint(point2.position);
+            if (obj1.IsPointInside(localPoint))
+            {
+                SpringPoint closestPoint1 = FindClosestSurfacePoint(obj1, point2.position);
+                if (closestPoint1 != null)
+                {
+                    float penetration = Vector3.Distance(point2.position, closestPoint1.position);
+                    Vector3 contactNormal = (closestPoint1.position - point2.position).normalized;
+
+                    Vector3 relativeVel = closestPoint1.velocity - point2.velocity;
+                    float impactSpeed = Vector3.Dot(relativeVel, contactNormal);
+
+                    // Check if we already have a very similar contact point
+                    bool isDuplicate = false;
+                    foreach (var existing in contacts)
+                    {
+                        if (Vector3.Distance(existing.worldPosition, Vector3.Lerp(closestPoint1.position, point2.position, 0.5f)) < 0.1f)
+                        {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+
+                    if (!isDuplicate)
+                    {
+                        contacts.Add(new ContactPoint
+                        {
+                            worldPosition = Vector3.Lerp(closestPoint1.position, point2.position, 0.5f),
+                            normal = contactNormal,
+                            penetrationDepth = penetration,
+                            impactVelocity = impactSpeed,
+                            point1 = closestPoint1,
+                            point2 = point2,
+                            influenceRadius = contactRadius
+                        });
+                    }
+                }
+            }
+        }
+
+        // Limit number of contacts for performance
+        if (contacts.Count > maxContactsPerCollision)
+        {
+            // Keep the contacts with highest impact velocity
+            contacts.Sort((a, b) => b.impactVelocity.CompareTo(a.impactVelocity));
+            contacts = contacts.GetRange(0, maxContactsPerCollision);
+        }
+
+        return contacts;
+    }
+
+    private SpringPoint FindClosestSurfacePoint(OctreeSpringFiller body, Vector3 worldPosition)
+    {
+        SpringPoint closest = null;
+        float minDistance = float.MaxValue;
+
+        foreach (var point in body.SurfacePoints)
+        {
+            float distance = Vector3.Distance(point.position, worldPosition);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                closest = point;
+            }
+        }
+
+        return closest;
+    }
+
+    private void ApplyContactPointResponse(OctreeSpringFiller obj1, OctreeSpringFiller obj2, ContactPoint contact)
+    {
+        // Calculate impulse magnitude for this contact
+        float impulseMagnitude = CalculateContactImpulse(contact);
+        Vector3 impulse = contact.normal * impulseMagnitude;
+
+        // Apply impulse to nearby points in both objects
+        ApplyImpulseToNearbyPoints(obj1, contact.worldPosition, impulse, contact.influenceRadius);
+        ApplyImpulseToNearbyPoints(obj2, contact.worldPosition, -impulse, contact.influenceRadius);
+
+        // Apply friction if enabled
+        if (coefficientOfFriction > 0.001f)
+        {
+            Vector3 frictionImpulse = CalculateFrictionImpulse(contact, impulseMagnitude);
+            ApplyImpulseToNearbyPoints(obj1, contact.worldPosition, frictionImpulse, contact.influenceRadius);
+            ApplyImpulseToNearbyPoints(obj2, contact.worldPosition, -frictionImpulse, contact.influenceRadius);
+        }
+
+        // Position correction to resolve penetration
+        ApplyPositionCorrection(obj1, obj2, contact);
+    }
+
+    private float CalculateContactImpulse(ContactPoint contact)
+    {
+        // Calculate relative velocity at contact point
+        Vector3 relativeVelocity = contact.point1.velocity - contact.point2.velocity;
+        float velocityAlongNormal = Vector3.Dot(relativeVelocity, contact.normal);
+
+        // Don't resolve if already separating
+        if (velocityAlongNormal > 0) return 0f;
+
+        // Use point masses for more accurate response
+        float invMass1 = contact.point1.mass > 0 ? 1.0f / contact.point1.mass : 0.0f;
+        float invMass2 = contact.point2.mass > 0 ? 1.0f / contact.point2.mass : 0.0f;
+
+        // Calculate impulse magnitude
+        float j = -(1 + coefficientOfRestitution) * velocityAlongNormal;
+        j /= (invMass1 + invMass2);
+
+        return j;
+    }
+
+    private Vector3 CalculateFrictionImpulse(ContactPoint contact, float normalImpulseMagnitude)
+    {
+        // Get tangential velocity
+        Vector3 relativeVelocity = contact.point1.velocity - contact.point2.velocity;
+        Vector3 tangentialVelocity = relativeVelocity - Vector3.Dot(relativeVelocity, contact.normal) * contact.normal;
+
+        if (tangentialVelocity.magnitude < 0.001f) return Vector3.zero;
+
+        Vector3 tangentDirection = tangentialVelocity.normalized;
+        float frictionImpulse = coefficientOfFriction * normalImpulseMagnitude;
+
+        // Clamp friction to not exceed available tangential velocity
+        float maxFrictionImpulse = tangentialVelocity.magnitude * (contact.point1.mass + contact.point2.mass) * 0.5f;
+        frictionImpulse = Mathf.Min(frictionImpulse, maxFrictionImpulse);
+
+        return -tangentDirection * frictionImpulse;
+    }
+
+    private void ApplyImpulseToNearbyPoints(OctreeSpringFiller body, Vector3 contactPoint, Vector3 impulse, float influenceRadius)
+    {
+        foreach (var point in body.allSpringPoints)
+        {
+            float distance = Vector3.Distance(point.position, contactPoint);
+
+            if (distance < influenceRadius)
+            {
+                // Calculate influence based on distance with falloff
+                float normalizedDistance = distance / influenceRadius;
+                float influence = CalculateInfluenceFalloff(normalizedDistance);
+
+                // Apply scaled impulse to velocity
+                Vector3 velocityChange = impulse * influence / point.mass;
+                point.velocity += velocityChange;
+
+                if (logCollisionDetails && influence > 0.1f)
+                {
+                    Debug.Log($"Applied impulse {velocityChange.magnitude:F2} to point at distance {distance:F2} (influence: {influence:F2})");
+                }
+            }
+        }
+    }
+
+    private float CalculateInfluenceFalloff(float normalizedDistance)
+    {
+        // Different falloff curves - you can experiment with these
+        switch ((int)contactInfluenceFalloff)
+        {
+            case 1: // Linear falloff
+                return 1.0f - normalizedDistance;
+
+            case 2: // Quadratic falloff (default)
+                return (1.0f - normalizedDistance) * (1.0f - normalizedDistance);
+
+            case 3: // Cubic falloff (sharp)
+                float invDist = 1.0f - normalizedDistance;
+                return invDist * invDist * invDist;
+
+            case 4: // Smooth step
+                return Mathf.SmoothStep(1.0f, 0.0f, normalizedDistance);
+
+            default:
+                return Mathf.Pow(1.0f - normalizedDistance, contactInfluenceFalloff);
+        }
+    }
+
+    private void ApplyPositionCorrection(OctreeSpringFiller obj1, OctreeSpringFiller obj2, ContactPoint contact)
+    {
+        if (contact.penetrationDepth <= penetrationSlop) return;
+
+        // Calculate correction amount
+        float correctionAmount = (contact.penetrationDepth - penetrationSlop) * penetrationCorrectionFactor;
+        Vector3 correction = contact.normal * correctionAmount;
+
+        // Calculate mass ratio for correction distribution
+        float totalMass = contact.point1.mass + contact.point2.mass;
+        float mass1Ratio = contact.point2.mass / totalMass; // obj1 gets more correction if obj2 is heavier
+        float mass2Ratio = contact.point1.mass / totalMass; // obj2 gets more correction if obj1 is heavier
+
+        Vector3 correction1 = correction * mass1Ratio;
+        Vector3 correction2 = -correction * mass2Ratio;
+
+        // Apply position correction to nearby points
+        ApplyPositionCorrectionToNearbyPoints(obj1, contact.worldPosition, correction1, contact.influenceRadius);
+        ApplyPositionCorrectionToNearbyPoints(obj2, contact.worldPosition, correction2, contact.influenceRadius);
+    }
+
+    private void ApplyPositionCorrectionToNearbyPoints(OctreeSpringFiller body, Vector3 contactPoint, Vector3 correction, float influenceRadius)
+    {
+        foreach (var point in body.allSpringPoints)
+        {
+            float distance = Vector3.Distance(point.position, contactPoint);
+
+            if (distance < influenceRadius)
+            {
+                float normalizedDistance = distance / influenceRadius;
+                float influence = CalculateInfluenceFalloff(normalizedDistance);
+
+                point.position += correction * influence;
+            }
+        }
+    }
+
+    // Fallback to original global collision response
+    private void HandleGlobalCollision(OctreeSpringFiller obj1, OctreeSpringFiller obj2, CollisionInfo info)
+    {
+        // Your original collision response code here
+        obj1.HandleCollisionResponse(info, obj2);
+        obj2.HandleCollisionResponse(new CollisionInfo
+        {
+            Normal = -info.Normal,
+            Depth = info.Depth,
+            DidCollide = true
+        }, obj1);
     }
 
 
@@ -148,20 +465,30 @@ public class CollisionManager : MonoBehaviour
         }
         return totalVelocity / obj.allSpringPoints.Count;
     }
-
+    // Debug visualization
     private void OnDrawGizmos()
     {
-        if (!showCollisionGizmos || !Application.isPlaying || lastFrameCollisions == null)
-            return;
+        if (!Application.isPlaying || !enableInterObjectCollision) return;
 
-        // Draw the collision normal for each detected collision this frame
-        Gizmos.color = Color.red;
-        foreach (var info in lastFrameCollisions)
+        if (showContactPoints)
         {
-            // Find a representative center point for the gizmo
-            Vector3 center = Vector3.Lerp(info.Normal * -info.Depth, Vector3.zero, 0.5f); // Simplified center
-            Gizmos.DrawRay(center, info.Normal * 2.0f); // Draw the normal
-            Gizmos.DrawWireSphere(center, 0.2f); // Mark the approximate collision spot
+            // Draw contact points
+            Gizmos.color = Color.red;
+            foreach (var contact in currentFrameContacts)
+            {
+                Gizmos.DrawSphere(contact.worldPosition, 0.05f);
+                Gizmos.DrawRay(contact.worldPosition, contact.normal * 0.5f);
+            }
+        }
+
+        if (showInfluenceRadius)
+        {
+            // Draw influence radius for contact points
+            Gizmos.color = Color.yellow;
+            foreach (var contact in currentFrameContacts)
+            {
+                Gizmos.DrawWireSphere(contact.worldPosition, contact.influenceRadius);
+            }
         }
     }
 }

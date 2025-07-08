@@ -273,9 +273,6 @@ public class OctreeSpringFiller : MonoBehaviour
             if (pointsToInsert.Count > 0)
             {
                 meshDeformer.SubdivideMeshWithPoints(pointsToInsert.ToArray());
-
-                // Immediately update new vertices to match spring points
-                UpdateMeshFromPoints();
             }
             firstSubdivision = false;
         }
